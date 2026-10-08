@@ -170,7 +170,10 @@ pub fn start(
     std::thread::spawn(move || {
         // macOS: the tap object has to outlive the stream reading from it.
         #[cfg(target_os = "macos")]
-        let (_tap, id) = match exclude_self.then(|| crate::tap::Tap::excluding_self(&id)) {
+        let (_tap, id) = match exclude_self.then(|| {
+            // The tap wants cpal's own id, without our `sys|` prefix.
+            crate::tap::Tap::excluding_self(id.split_once(SEP).map_or(id.as_str(), |(_, cpal_id)| cpal_id))
+        }) {
             None => (None, id),
             Some(Ok(tap)) => {
                 let id = format!("{MIC}{SEP}{}", tap.device_id);
