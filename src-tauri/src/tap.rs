@@ -24,6 +24,7 @@ use objc2_foundation::{NSArray, NSDictionary, NSNumber, NSString};
 use std::ffi::{c_void, CStr};
 use std::ptr::NonNull;
 use std::str::FromStr;
+use std::time::Duration;
 
 pub struct Tap {
     tap: AudioObjectID,
@@ -80,14 +81,21 @@ impl Tap {
 
         // From here `Drop` cleans up whatever happens.
         let mut this = Self { tap, aggregate, device_id: String::new() };
+        // A fresh aggregate device takes a moment before it reports input configs, and until
+        // then cpal's `input_devices()` leaves it out, so wait for it.
         let agg_uid = agg_uid.to_string();
-        this.device_id = cpal::default_host()
-            .input_devices()?
-            .filter_map(|d| d.id().ok())
-            .find(|id| id.1 == agg_uid)
-            .ok_or_else(|| anyhow!("system audio tap did not show up as an input device"))?
-            .to_string();
-        Ok(this)
+        for _ in 0..40 {
+            let ready = cpal::default_host()
+                .devices()?
+                .find(|d| d.id().is_ok_and(|id| id.1 == agg_uid))
+                .filter(|d| d.supports_input());
+            if let Some(d) = ready {
+                this.device_id = d.id()?.to_string();
+                return Ok(this);
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        Err(anyhow!("system audio tap did not show up as an input device"))
     }
 }
 
