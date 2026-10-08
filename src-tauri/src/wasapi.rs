@@ -129,7 +129,9 @@ unsafe fn capture(pipe: &mut Pipe, stop: &AtomicBool, ready: &Sender<Result<(), 
             reader.GetBuffer(&mut data, &mut frames, &mut flags, None, None)?;
             let n = frames as usize * CHANNELS as usize;
             frames_f32.clear();
-            if flags & AUDCLNT_BUFFERFLAGS_SILENT.0 as u32 != 0 {
+            // An empty packet can come back with a null pointer, which from_raw_parts rejects
+            // even at length 0.
+            if flags & AUDCLNT_BUFFERFLAGS_SILENT.0 as u32 != 0 || data.is_null() {
                 frames_f32.resize(n, 0.0);
             } else {
                 let samples = std::slice::from_raw_parts(data as *const i16, n);

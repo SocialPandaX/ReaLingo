@@ -126,7 +126,7 @@ fn start_stream(
             }
             let (app2, stop2) = (app.clone(), stop.clone());
             tauri::async_runtime::spawn_blocking(move || {
-                let result = decode::stream_file(&path, tx, stop2.clone(), |sent, total| {
+                let result = decode::stream_file(&path, tx, stop2, |sent, total| {
                     let text = match total {
                         Some(t) => format!("{sent:.1}/{t:.1}"),
                         None => format!("{sent:.1}/?"),
@@ -137,9 +137,8 @@ fn start_stream(
                     Ok(()) => realtime::note(&app2, "progress", "done"),
                     Err(e) => realtime::note(&app2, "error", e.to_string()),
                 }
-                // Let the last chunks land, then wind the socket down.
-                std::thread::sleep(std::time::Duration::from_secs(2));
-                stop2.store(true, Ordering::Relaxed);
+                // `tx` drops here, which is the end of input: the session finishes and
+                // waits for the last sentence on its own.
             });
         }
     }

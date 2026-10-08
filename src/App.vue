@@ -81,6 +81,7 @@ const statusKey = computed(() => {
   if (!settings.apiKey.trim()) return "statusNoKey" as const;
   if (status.value === "error") return "statusError" as const;
   if (status.value === "connecting") return "statusConnecting" as const;
+  if (status.value === "stopping") return "statusStopping" as const;
   if (status.value === "connected") return speaking.value ? ("statusListening" as const) : ("statusConnected" as const);
   return "statusIdle" as const;
 });
@@ -543,13 +544,13 @@ watch([lines, current], async () => {
           <button
             class="go"
             :class="{ running: isRunning() }"
-            :disabled="!canStart && !isRunning()"
+            :disabled="(!canStart && !isRunning()) || status === 'stopping'"
             @click="toggle"
           >
             <span class="go-ring" />
             <svg v-if="!isRunning()" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.6v10.8L13 8z" /></svg>
             <svg v-else width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="3.5" y="3.5" width="9" height="9" rx="2" /></svg>
-            {{ isRunning() ? t("stop") : t("start") }}
+            {{ status === "stopping" ? t("statusStopping") : isRunning() ? t("stop") : t("start") }}
           </button>
         </footer>
       </aside>

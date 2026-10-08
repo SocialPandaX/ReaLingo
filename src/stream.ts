@@ -13,7 +13,8 @@ export interface Line {
   at: number;
 }
 
-export type Status = "idle" | "connecting" | "connected" | "closed" | "error";
+/** `stopping`: input has ended, the last sentence is still on its way. */
+export type Status = "idle" | "connecting" | "connected" | "stopping" | "closed" | "error";
 
 export const lines = ref<Line[]>([]);
 /**
@@ -290,14 +291,18 @@ export async function start(source: Source, speak: boolean) {
   }
 }
 
+/**
+ * Ends input and waits: the server is still finishing the last sentence, and the `closed`
+ * status that settles everything arrives once it has. Set before the call, so a `closed`
+ * that beats the round trip still wins.
+ */
 export async function stop() {
+  if (status.value !== "error") status.value = "stopping";
   await invoke("stop_stream");
-  flush();
-  speaking.value = false;
-  if (status.value !== "error") status.value = "idle";
 }
 
-export const isRunning = () => status.value === "connecting" || status.value === "connected";
+export const isRunning = () =>
+  status.value === "connecting" || status.value === "connected" || status.value === "stopping";
 
 export function exportTxt(rows: Line[] = lines.value): string {
   return rows.map((l) => (l.source ? `${l.source}\n${l.target}` : l.target)).join("\n\n");

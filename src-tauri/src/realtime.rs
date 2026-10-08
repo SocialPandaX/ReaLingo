@@ -99,7 +99,8 @@ async fn connect_and_pump(
     write.send(Message::Text(settings.session_update().to_string().into())).await?;
     note(app, "status", "connected");
 
-    // Uplink: PCM chunks -> base64 -> input_audio_buffer.append.
+    // Uplink: PCM chunks -> base64 -> input_audio_buffer.append, until the user stops or
+    // the source runs out (a file at EOF drops its sender).
     let stop_up = stop.clone();
     let uplink = tokio::spawn(async move {
         while let Some(chunk) = audio_rx.recv().await {
@@ -115,18 +116,22 @@ async fn connect_and_pump(
                 "audio": BASE64_STANDARD.encode(&bytes),
             });
             if write.send(Message::Text(frame.to_string().into())).await.is_err() {
-                return;
+                return None;
             }
         }
+        // Finishing: the reader below switches to the short wait, and capture stops.
+        stop_up.store(true, Ordering::Relaxed);
         let _ = write.send(Message::Text(json!({ "type": "session.finish" }).to_string().into())).await;
-        let _ = write.close().await;
+        // Not closed here: a close frame makes the server hang up before the last sentence
+        // is out. The reader closes it once `session.finished` says everything has arrived.
+        Some(write)
     });
 
     loop {
-        // Once the user stops we still want the tail of the translation, but not forever:
-        // the uplink closes the write half, the server answers, and this drains it.
+        // After session.finish the server still owes the last sentence, which can take a
+        // few seconds of silence to produce; 15 s bounds a server that never answers.
         let idle = if stop.load(Ordering::Relaxed) {
-            Duration::from_secs(5)
+            Duration::from_secs(15)
         } else {
             Duration::from_secs(90)
         };
@@ -145,6 +150,9 @@ async fn connect_and_pump(
                     }
                     let _ = app.emit(RAW_EVENT, &value);
                     dispatch(app, &value);
+                    if value.get("type").and_then(Value::as_str) == Some("session.finished") {
+                        break;
+                    }
                 }
             }
             Ok(Message::Close(_)) => break,
@@ -154,7 +162,9 @@ async fn connect_and_pump(
     }
 
     stop.store(true, Ordering::Relaxed);
-    let _ = uplink.await;
+    if let Ok(Some(mut write)) = uplink.await {
+        let _ = write.close().await;
+    }
     Ok(())
 }
 
