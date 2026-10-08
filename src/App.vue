@@ -13,7 +13,7 @@ import Settings from "./components/Settings.vue";
 import About from "./components/About.vue";
 import History from "./components/History.vue";
 import { locale, setLocale, t } from "./i18n";
-import { langName, languageCodes } from "./languages";
+import { canSpeak, langName, languageCodes, VOICES } from "./languages";
 import { check, checkUpdateAtStartup, openHome } from "./update";
 import { settings, initSettings, resolvedTheme, type SubAlign, type SubMode, type SubtitleStyle } from "./store";
 import {
@@ -111,6 +111,16 @@ async function chooseFile() {
   if (typeof picked === "string") filePath.value = picked;
 }
 
+/* ---------- read aloud ---------- */
+const voiceOptions = VOICES.map((v) => ({ value: v, label: v }));
+// Why speaking cannot happen with the current choices, if it cannot. Linux has no way to
+// leave our own playback out of a monitor source, so system audio would hear itself.
+const speakBlocked = computed(() => {
+  if (!canSpeak(settings.targetLang)) return "speakNoLang" as const;
+  if (caps.value.os === "linux" && sourceKind.value === "system") return "speakLinuxSystem" as const;
+  return null;
+});
+
 async function toggle() {
   if (isRunning()) {
     await stop();
@@ -123,7 +133,8 @@ async function toggle() {
   await start(
     sourceKind.value === "file"
       ? { kind: "file", path: filePath.value }
-      : { kind: "device", id: deviceId.value }
+      : { kind: "device", id: deviceId.value },
+    settings.speak && !speakBlocked.value
   );
 }
 
@@ -431,6 +442,24 @@ watch([lines, current], async () => {
                 <Picker v-model="settings.targetLang" :options="langOptions" :disabled="isRunning()" />
               </div>
             </div>
+
+            <label class="line">
+              <span>{{ t("speak") }}</span>
+              <button
+                class="sw"
+                :class="{ on: settings.speak && !speakBlocked }"
+                :disabled="isRunning() || !!speakBlocked"
+                @click="settings.speak = !settings.speak"
+              />
+            </label>
+            <p v-if="settings.speak && speakBlocked" class="hint">{{ t(speakBlocked) }}</p>
+            <template v-else-if="settings.speak">
+              <div class="line">
+                <span>{{ t("voice") }}</span>
+                <Picker v-model="settings.voice" :options="voiceOptions" :disabled="isRunning()" />
+              </div>
+              <p v-if="sourceKind === 'mic'" class="hint">{{ t("speakMic") }}</p>
+            </template>
           </Card>
 
           <!-- subtitle overlay -->

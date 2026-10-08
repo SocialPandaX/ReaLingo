@@ -19,6 +19,7 @@ use tokio_tungstenite::tungstenite::http::HeaderValue;
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::config::Settings;
+use crate::player::Player;
 
 pub const EVENT: &str = "rt://event";
 /// Every server frame, verbatim — the app's diagnostics drawer reads this. The realtime
@@ -62,9 +63,10 @@ pub async fn run(
     settings: Settings,
     audio_rx: Receiver<Vec<i16>>,
     stop: Arc<AtomicBool>,
+    player: Option<Player>,
 ) {
     note(&app, "status", "connecting");
-    if let Err(e) = connect_and_pump(&app, &settings, audio_rx, &stop).await {
+    if let Err(e) = connect_and_pump(&app, &settings, audio_rx, &stop, player).await {
         note(&app, "error", e.to_string());
     }
     stop.store(true, Ordering::Relaxed);
@@ -76,6 +78,7 @@ async fn connect_and_pump(
     settings: &Settings,
     mut audio_rx: Receiver<Vec<i16>>,
     stop: &Arc<AtomicBool>,
+    mut player: Option<Player>,
 ) -> Result<()> {
     if settings.api_key.trim().is_empty() {
         return Err(anyhow!("API key is empty"));
@@ -134,7 +137,12 @@ async fn connect_and_pump(
         };
         match msg {
             Ok(Message::Text(text)) => {
-                if let Ok(value) = serde_json::from_str::<Value>(&text) {
+                if let Ok(mut value) = serde_json::from_str::<Value>(&text) {
+                    if let Some(audio) = take_audio(&mut value) {
+                        if let Some(p) = player.as_mut() {
+                            p.push(&audio);
+                        }
+                    }
                     let _ = app.emit(RAW_EVENT, &value);
                     dispatch(app, &value);
                 }
@@ -148,6 +156,18 @@ async fn connect_and_pump(
     stop.store(true, Ordering::Relaxed);
     let _ = uplink.await;
     Ok(())
+}
+
+/// Pulls the PCM out of a `response.audio.delta` frame and leaves its byte count behind:
+/// several KB of base64 ten times a second is no use in the diagnostics drawer.
+fn take_audio(v: &mut Value) -> Option<Vec<u8>> {
+    if v.get("type").and_then(Value::as_str) != Some("response.audio.delta") {
+        return None;
+    }
+    let delta = v.get_mut("delta")?;
+    let bytes = BASE64_STANDARD.decode(delta.as_str()?).ok()?;
+    *delta = format!("<{} bytes>", bytes.len()).into();
+    Some(bytes)
 }
 
 fn dispatch(app: &AppHandle, v: &Value) {
@@ -324,6 +344,14 @@ mod tests {
         }))
         .unwrap();
         assert_eq!(tgt.id, "item_assistant");
+    }
+
+    #[test]
+    fn audio_delta_is_decoded_and_elided_from_the_raw_log() {
+        let mut v = json!({ "type": "response.audio.delta", "delta": BASE64_STANDARD.encode([1u8, 0, 255, 127]) });
+        assert_eq!(take_audio(&mut v).unwrap(), vec![1, 0, 255, 127]);
+        assert_eq!(v["delta"], "<4 bytes>");
+        assert!(take_audio(&mut json!({ "type": "response.text.text", "delta": "AAAA" })).is_none());
     }
 
     #[test]

@@ -300,6 +300,7 @@ input[type="color"] {
   transition: transform 0.28s var(--ease);
 }
 .sw.on::after { transform: translateX(17px); }
+.sw:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Chip-height variant, for a card's action row. */
 .sw.sm { width: 34px; height: 20px; }

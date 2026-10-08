@@ -26,6 +26,9 @@ Windows `.msi`、macOS `.dmg`（Intel 与 Apple Silicon 通用）、Linux `.deb`
 
 - **三种音频来源**：麦克风 / 系统声音 / 本地音频文件（Windows、macOS、Ubuntu 三平台都能直接采系统声音）
 - **60 种语言互译**，源语言可自动检测；可切换到旧模型 Qwen3（18 语种）
+- **朗读译文**：语言卡片里打开，47 种音色可选，由模型直接合成，不另接 TTS。只有 29 种目标语言有语音输出，
+  其余只能出文字，开关会变灰。录系统声音时，Windows 和 macOS 会把 ReaLingo 自己的朗读排除在采集之外，
+  不会被录回去再翻一遍（见「平台支持」）；用麦克风时扬声器的声音会被收回去，请戴耳机
 - **独立字幕窗**：默认置顶，双语 / 仅译文 / 仅原文，背景不透明度、字号、字体颜色、描边、
   对齐方式（左 / 中 / 右）可调；长句可选「自动加高」（换行，窗口跟着文字长高，底边不动）
   或「单行滚动」（每行不换行，滚到最新的字，说过的从左边切掉）；
@@ -72,8 +75,8 @@ Linux 上如果没有跑 Secret Service（无桌面环境或精简发行版）�
 
 | | 麦克风 | 系统声音 | 说明 |
 |---|---|---|---|
-| Windows 10/11 | ✅ | ✅ | WASAPI loopback，无需额外配置 |
-| macOS 14.4+ | ✅ | ✅ | Core Audio process tap；首次使用会弹权限申请 |
+| Windows 10/11 | ✅ | ✅ | WASAPI loopback，无需额外配置。朗读时改用 process loopback 排除自身（Windows 10 2004+） |
+| macOS 14.4+ | ✅ | ✅ | Core Audio process tap；首次使用会弹权限申请。朗读时 tap 把自身进程列为排除 |
 | macOS 12–14.3 | ✅ | ❌ | process tap 是 14.4 才有的 API |
 | Ubuntu 22.04+ | ✅ | ✅ | 绕开 ALSA，直接向 PulseAudio / PipeWire 要 monitor 源（见下） |
 
@@ -93,6 +96,15 @@ monitor 正是「录下这个输出在放什么」的设备，pavucontrol 里能
 
 只有在**没有声音服务器应答**时（无桌面环境的机器）才回到老办法：设备列表里不给系统声音，
 界面提示你自己在 `pavucontrol` →「录制」标签把 ReaLingo 的来源改成输出设备的 Monitor。
+
+**朗读时为什么不会录回去**：朗读在 Rust 里用 cpal 播放（`src-tauri/src/player.rs`），不交给 webview。
+排除是按进程算的，而 webview 的声音来自另一个 WebView2 / WebKit 进程。
+
+- Windows（`src-tauri/src/wasapi.rs`）：process loopback 的 `EXCLUDE_TARGET_PROCESS_TREE` 模式，
+  录「默认输出设备上除了本进程树以外的所有声音」。它只能录默认设备，而朗读也放在默认设备上，
+  所以只有选中的就是默认设备时才走这条路；选了别的设备本来就录不到朗读，仍走普通 loopback
+- macOS（`src-tauri/src/tap.rs`）：cpal 的 tap 不排除任何进程，这里自己建一个把本进程列进排除名单的 tap，
+  包成私有聚合设备交给 cpal 当普通输入读。本进程要先在 Core Audio 里出现才查得到，所以先开播放再开采集
 
 **macOS 权限**：麦克风和系统声音是两个独立的 TCC 权限，分别对应 `src-tauri/Info.plist` 里的
 `NSMicrophoneUsageDescription` 和 `NSAudioCaptureUsageDescription`。后者缺失时 macOS
@@ -258,7 +270,7 @@ GIF 只有 256 色，渐变字会断层，且 1-bit 透明会在深色底上留�
 
 | 不支持 | 原因 / 何时加 |
 |---|---|
-| 译文语音输出（TTS） | 当前 `modalities: ["text"]`。加 `"audio"` + 前端 Web Audio 播放队列即可 |
+| Linux 上录系统声音时朗读 | monitor 源录的是整个输出的混音，没有「除了某个程序」的选项，朗读会被录回去。可行方案是只录选定程序的 sink-input（`parec --monitor-stream`） |
 | 视频文件（mp4/mkv 抽音轨） | 需打包 ffmpeg sidecar，安装包 +40~80MB |
 | 双语互译（说中出英 / 说英出中） | 见下方「双语互译为什么还没做」 |
 | 断线自动重连 | 目前报错后需手动重新开始 —— 实时同传断线本就需要用户知情 |

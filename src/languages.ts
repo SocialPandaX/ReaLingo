@@ -1,5 +1,5 @@
 // Languages supported by qwen3.5-livetranslate-flash-realtime.
-// `tts: true` = the model can also speak this language (we only use text, kept for later).
+// `tts: true` = the model can also speak this language (the "read aloud" switch).
 const TABLE = `
 zh|中文|Chinese|1
 en|英语|English|1
@@ -92,6 +92,19 @@ export function languageCodes(model: string): string[] {
   const all = LANGUAGES.map((l) => l.code);
   return model === MODEL_LEGACY ? all.filter((c) => LEGACY_CODES.has(c)) : all;
 }
+
+export function canSpeak(code: string): boolean {
+  return BY_CODE.get(code)?.tts ?? false;
+}
+
+/** Voices the LiveTranslate models accept for `session.voice` (Model Studio voice list). */
+export const VOICES = (
+  "Tina Cindy Serena Maia Mia Momo Angel Qiao Katerina Jennifer Mione Sohee Sonrisa Marina Hana " +
+  "Griet Eliška Siiri Ingrid Sigga Bea Chloe Roya Sunnybobi Raymond Ethan Harvey Evan Wil Ryan " +
+  "Aiden Lenn Bodega Emilien Andre Alek Rizky Arda Dolce Jakub Joyner Gold"
+)
+  .split(" ")
+  .concat(["Liora Mira", "Theo Calm", "Li Cassian", "Ono Anna", "Radio Gol"]);
 
 export function langName(code: string, locale: "zh" | "en"): string {
   if (code === "auto") return locale === "zh" ? "自动检测" : "Auto detect";

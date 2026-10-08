@@ -28,6 +28,11 @@ Grab the installer for your platform from the
 - **Three audio sources**: microphone / system audio / a local audio file
   (Windows, macOS and Ubuntu can all capture system audio directly)
 - **60 languages**, with automatic source detection; switchable to the older Qwen3 model (18 languages)
+- **Read the translation aloud**: switch it on in the language card and pick one of 47 voices; the model
+  synthesizes the speech itself, no separate TTS. Only 29 target languages have audio output; for the rest
+  the switch is greyed out. When capturing system audio, Windows and macOS leave ReaLingo's own speech out
+  of the capture so it is not recorded and translated again (see Platform support); with a microphone,
+  speech from your speakers will be picked up, so use headphones
 - **Standalone subtitle overlay**: always on top, bilingual / translation only / source only,
   with adjustable background opacity, font size, colours, outline and alignment. A long
   sentence either grows the window taller (bottom edge pinned) or stays on one line that
@@ -78,8 +83,8 @@ text in the config file, and the settings page says so rather than pretending ot
 
 | | Microphone | System audio | Notes |
 |---|---|---|---|
-| Windows 10/11 | ✅ | ✅ | WASAPI loopback, nothing to configure |
-| macOS 14.4+ | ✅ | ✅ | Core Audio process tap; macOS asks for permission on first use |
+| Windows 10/11 | ✅ | ✅ | WASAPI loopback, nothing to configure. While reading aloud, process loopback excludes ourselves (Windows 10 2004+) |
+| macOS 14.4+ | ✅ | ✅ | Core Audio process tap; macOS asks for permission on first use. While reading aloud, the tap lists our process as excluded |
 | macOS 12–14.3 | ✅ | ❌ | Process taps are a 14.4 API |
 | Ubuntu 22.04+ | ✅ | ✅ | Goes around ALSA and asks PulseAudio / PipeWire for monitor sources (below) |
 
@@ -103,6 +108,18 @@ one path covers both. They come from `pulseaudio-utils`, now in the `.deb` `depe
 Only when **no sound server answers** (a headless box) does the old story apply: no system
 audio entries, and the app tells you to point ReaLingo at your output's Monitor in
 pavucontrol's Recording tab.
+
+**Why reading aloud is not recorded back**: the speech is played from Rust with cpal
+(`src-tauri/src/player.rs`), not by the webview. Exclusion works per process, and webview audio comes
+out of a separate WebView2 / WebKit process.
+
+- Windows (`src-tauri/src/wasapi.rs`): process loopback in `EXCLUDE_TARGET_PROCESS_TREE` mode records
+  everything on the default output except our process tree. It can only record the default device, which
+  is also where the speech plays, so it is used only when the selected device is the default; any other
+  device never hears the speech and keeps plain loopback
+- macOS (`src-tauri/src/tap.rs`): cpal's tap excludes nobody, so we build one with our process on the
+  exclusion list, wrap it in a private aggregate device, and read that through cpal as an ordinary input.
+  Our process has to be known to Core Audio before it can be looked up, so playback starts before capture
 
 **macOS permissions**: microphone and system audio are two separate TCC permissions, backed by
 `NSMicrophoneUsageDescription` and `NSAudioCaptureUsageDescription` in `src-tauri/Info.plist`.
@@ -259,7 +276,7 @@ audio file ──┘   (cpal / symphonia)                                       
 
 | Not supported | Why / when it would be added |
 |---|---|
-| Spoken translation output (TTS) | Currently `modalities: ["text"]`. Add `"audio"` plus a Web Audio playback queue |
+| Reading aloud while capturing system audio on Linux | A monitor source records the whole output mix, with no "everything but this app" option, so the speech would be recorded back. The way forward is capturing only the chosen app's sink-input (`parec --monitor-stream`) |
 | Video files (extracting the audio track from mp4/mkv) | Needs an ffmpeg sidecar, +40–80 MB to the installer |
 | Two-way translation (speak Chinese → English, speak English → Chinese) | See below |
 | Automatic reconnection | You restart manually after an error — a dropped simultaneous-interpreting session is something the user should know about |

@@ -6,6 +6,8 @@ pub const MODEL: &str = "qwen3.5-livetranslate-flash-realtime";
 /// pickers accordingly so a session cannot be opened with a target it will reject.
 pub const MODEL_LEGACY: &str = "qwen3-livetranslate-flash-realtime";
 pub const ASR_MODEL: &str = "qwen3-asr-flash-realtime";
+/// The service's own default; any name from the Model Studio voice list works.
+pub const VOICE: &str = "Tina";
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -37,6 +39,12 @@ pub struct Settings {
     /// frames readable when probing and the tests below deterministic.
     #[serde(default)]
     pub hotwords: BTreeMap<String, String>,
+    /// Read the translation aloud. The frontend sends false where it cannot work: a target
+    /// language the model will not speak, or Linux system audio, which would record it back.
+    #[serde(default)]
+    pub speak: bool,
+    #[serde(default = "default_voice")]
+    pub voice: String,
 }
 
 fn auto() -> String {
@@ -44,6 +52,9 @@ fn auto() -> String {
 }
 fn default_model() -> String {
     MODEL.into()
+}
+fn default_voice() -> String {
+    VOICE.into()
 }
 fn en() -> String {
     "en".into()
@@ -62,7 +73,8 @@ impl Settings {
         format!("wss://{host}/api-ws/v1/realtime?model={model}")
     }
 
-    /// The `session.update` payload. Text-only: we render subtitles, we don't speak.
+    /// The `session.update` payload. Text always (it drives the subtitles); audio on top when
+    /// speaking, which arrives as 24 kHz mono PCM16 in `response.audio.delta`.
     pub fn session_update(&self) -> serde_json::Value {
         let mut transcription = serde_json::json!({ "model": ASR_MODEL });
         // Omitting `language` is what tells the model to auto-detect the source.
@@ -75,7 +87,7 @@ impl Settings {
         if !self.hotwords.is_empty() {
             translation["corpus"] = serde_json::json!({ "phrases": self.hotwords });
         }
-        serde_json::json!({
+        let mut v = serde_json::json!({
             "type": "session.update",
             "session": {
                 "modalities": ["text"],
@@ -96,7 +108,14 @@ impl Settings {
                     "silence_duration_ms": 800
                 }
             }
-        })
+        });
+        if self.speak {
+            let session = &mut v["session"];
+            session["modalities"] = serde_json::json!(["text", "audio"]);
+            session["voice"] = self.voice.clone().into();
+            session["output_audio_format"] = "pcm".into();
+        }
+        v
     }
 }
 
@@ -113,6 +132,8 @@ mod tests {
             target_lang: "en".into(),
             model: MODEL.into(),
             hotwords: BTreeMap::new(),
+            speak: false,
+            voice: VOICE.into(),
         }
     }
 
@@ -170,6 +191,21 @@ mod tests {
         with.hotwords.insert("人工智能".into(), "Artificial Intelligence".into());
         let phrases = &with.session_update()["session"]["translation"]["corpus"]["phrases"];
         assert_eq!(phrases["人工智能"], "Artificial Intelligence");
+    }
+
+    #[test]
+    fn speaking_adds_the_audio_modality_and_voice() {
+        let quiet = s(Region::Beijing, "").session_update();
+        assert_eq!(quiet["session"]["modalities"], serde_json::json!(["text"]));
+        assert!(quiet["session"].get("voice").is_none());
+
+        let mut loud = s(Region::Beijing, "");
+        loud.speak = true;
+        loud.voice = "Ethan".into();
+        let session = &loud.session_update()["session"];
+        assert_eq!(session["modalities"], serde_json::json!(["text", "audio"]));
+        assert_eq!(session["voice"], "Ethan");
+        assert_eq!(session["output_audio_format"], "pcm");
     }
 
     #[test]

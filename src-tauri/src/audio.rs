@@ -14,6 +14,11 @@
 //!   therefore cannot reach them at all, so system audio here does not go through cpal: see
 //!   [`crate::pulse`], which asks the sound server directly. Only when no sound server
 //!   answers does the old story hold — no system-audio entries, route it in pavucontrol.
+//!
+//! When we speak the translation ourselves, system audio must leave our own voice out or it
+//! gets translated again. `exclude_self` asks for that: Windows switches to process loopback
+//! ([`crate::wasapi`]), macOS to a tap that lists our process as excluded ([`crate::tap`]).
+//! Linux has no such filter, so the frontend does not offer speaking with system audio there.
 
 use anyhow::{anyhow, Result};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -142,6 +147,7 @@ pub fn start(
     tx: Sender<Vec<i16>>,
     level: Arc<AtomicU32>,
     stop: Arc<AtomicBool>,
+    exclude_self: bool,
 ) -> Result<()> {
     // Linux system audio never reaches cpal — it is a `parec` pipe, which owns its own
     // thread and reports failure synchronously already.
@@ -150,10 +156,31 @@ pub fn start(
         return crate::pulse::start(source, tx, level, stop);
     }
 
+    #[cfg(windows)]
+    if exclude_self && is_default_output(id) {
+        let pipe = Pipe::new(crate::wasapi::RATE, crate::wasapi::CHANNELS as usize, tx, level);
+        return crate::wasapi::start(pipe, stop);
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
+    let _ = exclude_self;
+
     let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<(), String>>();
     let id = id.to_string();
 
     std::thread::spawn(move || {
+        // macOS: the tap object has to outlive the stream reading from it.
+        #[cfg(target_os = "macos")]
+        let (_tap, id) = match exclude_self.then(|| crate::tap::Tap::excluding_self(&id)) {
+            None => (None, id),
+            Some(Ok(tap)) => {
+                let id = format!("{MIC}{SEP}{}", tap.device_id);
+                (Some(tap), id)
+            }
+            Some(Err(e)) => {
+                let _ = ready_tx.send(Err(e.to_string()));
+                return;
+            }
+        };
         let stream = match build(&id, tx, level) {
             Ok(s) => s,
             Err(e) => {
@@ -178,6 +205,18 @@ pub fn start(
         .map_err(|e| anyhow!(e))
 }
 
+/// Whether `id` is the system-audio entry for the default output — the device we play on.
+#[cfg(windows)]
+fn is_default_output(id: &str) -> bool {
+    let Some(target) = id.strip_prefix(SYS).and_then(|r| r.strip_prefix(SEP)) else {
+        return false;
+    };
+    cpal::default_host()
+        .default_output_device()
+        .and_then(|d| d.id().ok())
+        .is_some_and(|d| d.to_string() == target)
+}
+
 fn build(id: &str, tx: Sender<Vec<i16>>, level: Arc<AtomicU32>) -> Result<cpal::Stream> {
     let (device, supported) = find(id)?;
     let sample_format = supported.sample_format();
@@ -185,14 +224,7 @@ fn build(id: &str, tx: Sender<Vec<i16>>, level: Arc<AtomicU32>) -> Result<cpal::
     let in_rate = supported.sample_rate();
     let config: cpal::StreamConfig = supported.into();
 
-    let mut pipe = Pipe {
-        resampler: Resampler::new(in_rate, TARGET_RATE),
-        mono: Vec::new(),
-        pcm: Vec::new(),
-        channels,
-        tx,
-        level,
-    };
+    let mut pipe = Pipe::new(in_rate, channels, tx, level);
     let sink = move |frames: &[f32]| pipe.feed(frames);
 
     match sample_format {
@@ -229,7 +261,7 @@ where
 }
 
 /// Interleaved device frames -> mono -> 16 kHz -> 100 ms chunks on the channel.
-struct Pipe {
+pub(crate) struct Pipe {
     resampler: Resampler,
     mono: Vec<f32>,
     pcm: Vec<i16>,
@@ -239,7 +271,18 @@ struct Pipe {
 }
 
 impl Pipe {
-    fn feed(&mut self, frames: &[f32]) {
+    pub(crate) fn new(in_rate: u32, channels: usize, tx: Sender<Vec<i16>>, level: Arc<AtomicU32>) -> Self {
+        Self {
+            resampler: Resampler::new(in_rate, TARGET_RATE),
+            mono: Vec::new(),
+            pcm: Vec::new(),
+            channels,
+            tx,
+            level,
+        }
+    }
+
+    pub(crate) fn feed(&mut self, frames: &[f32]) {
         self.mono.clear();
         downmix(frames, self.channels, &mut self.mono);
 

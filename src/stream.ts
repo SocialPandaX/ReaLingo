@@ -259,7 +259,8 @@ void listen("rt://raw", ({ payload }) => {
 
 export type Source = { kind: "device"; id: string } | { kind: "file"; path: string };
 
-export async function start(source: Source) {
+/** `speak` is decided by the caller: whether the setting may take effect for this source. */
+export async function start(source: Source, speak: boolean) {
   errorMsg.value = "";
   warnMsg.value = "";
   lines.value = [];
@@ -282,7 +283,7 @@ export async function start(source: Source) {
     },
   });
   try {
-    await invoke("start_stream", { settings: toRaw(settings), source });
+    await invoke("start_stream", { settings: { ...toRaw(settings), speak }, source });
   } catch (e) {
     errorMsg.value = String(e);
     status.value = "error";

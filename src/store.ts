@@ -43,6 +43,9 @@ export interface Settings {
   history: boolean;
   /** Hotwords: source term -> preferred translation. Sent with `session.update`. */
   hotwords: Record<string, string>;
+  /** Read the translation aloud. Only takes effect where `canSpeak` allows it. */
+  speak: boolean;
+  voice: string;
   theme: Theme;
   sub: SubtitleStyle;
 }
@@ -56,6 +59,8 @@ export const settings = reactive<Settings>({
   model: MODEL_NEW,
   history: false,
   hotwords: {},
+  speak: false,
+  voice: "Tina",
   theme: "system",
   sub: {
     show: false,

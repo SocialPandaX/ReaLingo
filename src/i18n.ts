@@ -20,6 +20,11 @@ const zh = {
   from: "源语言",
   to: "目标语言",
   swap: "互换",
+  speak: "朗读译文",
+  voice: "音色",
+  speakNoLang: "这个目标语言只有文字输出，不能朗读",
+  speakLinuxSystem: "Linux 上录系统声音时会把朗读也录回去，所以这里不朗读",
+  speakMic: "用扬声器朗读会被麦克风收回去，请戴耳机",
   auto: "自动检测",
   search: "搜索…",
 
@@ -148,6 +153,11 @@ const en: typeof zh = {
   from: "Source",
   to: "Target",
   swap: "Swap",
+  speak: "Read translation aloud",
+  voice: "Voice",
+  speakNoLang: "This target language is text-only; it cannot be read aloud",
+  speakLinuxSystem: "On Linux, capturing system audio would record the speech back, so it stays silent here",
+  speakMic: "The microphone will pick up speech from your speakers; use headphones",
   auto: "Auto detect",
   search: "Search…",
 

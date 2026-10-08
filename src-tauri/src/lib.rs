@@ -2,11 +2,16 @@ mod audio;
 pub mod config;
 pub mod decode;
 mod history;
+mod player;
 mod realtime;
 pub mod pulse;
 pub mod resample;
 mod secret;
+#[cfg(target_os = "macos")]
+mod tap;
 mod tray;
+#[cfg(windows)]
+mod wasapi;
 
 use audio::DeviceInfo;
 use config::Settings;
@@ -95,6 +100,14 @@ fn start_stream(
         settings.api_key = key;
     }
 
+    // Before capture: on macOS the process has to be a Core Audio client already for the
+    // capture to be able to exclude it.
+    let player = if settings.speak {
+        Some(player::Player::start().map_err(|e| e.to_string())?)
+    } else {
+        None
+    };
+
     let stop = Arc::new(AtomicBool::new(false));
     // ~6 s of audio in flight; enough to ride out a slow handshake, small enough that a
     // wedged uplink shows up as dropped audio rather than unbounded memory.
@@ -102,7 +115,9 @@ fn start_stream(
 
     match source {
         Source::Device { id } => {
-            audio::start(&id, tx, state.level.clone(), stop.clone()).map_err(|e| e.to_string())?;
+            // Only needed when we make sound ourselves; otherwise the plain loopback path.
+            audio::start(&id, tx, state.level.clone(), stop.clone(), settings.speak)
+                .map_err(|e| e.to_string())?;
         }
         Source::File { path } => {
             let path = PathBuf::from(path);
@@ -130,7 +145,7 @@ fn start_stream(
     }
 
     *state.running.lock().unwrap() = Some(stop.clone());
-    tauri::async_runtime::spawn(realtime::run(app, settings, rx, stop));
+    tauri::async_runtime::spawn(realtime::run(app, settings, rx, stop, player));
     Ok(())
 }
 

@@ -31,6 +31,9 @@ async fn main() -> anyhow::Result<()> {
         target_lang: target,
         model: realingo_lib::config::MODEL.into(),
         hotwords: Default::default(),
+        // set PROBE_SPEAK=1 to see the audio-modality frames too.
+        speak: std::env::var_os("PROBE_SPEAK").is_some(),
+        voice: realingo_lib::config::VOICE.into(),
     };
 
     println!("→ {}", settings.ws_url());

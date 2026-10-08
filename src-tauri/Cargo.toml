@@ -27,6 +27,25 @@ tauri-plugin-store = "2.4.4"
 tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "sync", "time"] }
 tokio-tungstenite = { version = "0.29.0", features = ["native-tls"] }
 
+[target.'cfg(windows)'.dependencies]
+# Same major as cpal's, so it is not built twice. Process loopback is not in cpal.
+windows = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Media_Audio",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_System_Threading",
+    "Win32_System_Variant",
+] }
+# `#[implement]` expands to paths under `windows_core`, so it has to be a direct dependency.
+windows-core = "0.61"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# cpal's own versions; its loopback tap excludes nobody, see src/tap.rs.
+objc2 = "0.6"
+objc2-core-audio = { version = "0.3", default-features = false, features = ["std", "AudioHardware", "objc2", "objc2-foundation"] }
+objc2-core-foundation = "0.3"
+objc2-foundation = "0.3"
+
 [profile.release]
 codegen-units = 1
 lto = true

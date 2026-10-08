@@ -3252,6 +3252,10 @@ dependencies = [
  "cpal",
  "futures-util",
  "keyring",
+ "objc2",
+ "objc2-core-audio",
+ "objc2-core-foundation",
+ "objc2-foundation",
  "serde",
  "serde_json",
  "symphonia",
@@ -3262,6 +3266,8 @@ dependencies = [
  "tauri-plugin-store",
  "tokio",
  "tokio-tungstenite",
+ "windows",
+ "windows-core 0.61.2",
 ]
 
 [[package]]
