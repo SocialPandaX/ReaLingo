@@ -3,462 +3,242 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>ReaLingo — 实时语音翻译</title>
-<meta name="description" content="基于 Qwen3.5-LiveTranslate 的桌面同声传译工具，60 种语言，独立字幕窗，Windows / macOS / Linux。" />
+<title>ReaLingo — 桌面实时同传</title>
+<meta name="description" content="基于 Qwen3.5-LiveTranslate 的桌面同声传译：60 种语言互译，译文浮在任何窗口上，0.5 起还能朗读。Windows / macOS / Linux，开源免费。" />
 <link rel="icon" href="mark.png" />
-<meta property="og:title" content="ReaLingo — 实时语音翻译" />
-<meta property="og:description" content="基于 Qwen3.5-LiveTranslate 的桌面同声传译工具，60 种语言，独立字幕窗。" />
+<meta property="og:title" content="ReaLingo — 桌面实时同传" />
+<meta property="og:description" content="60 种语言互译，字幕浮在任何窗口上，译文还能念给你听。开源免费。" />
 <meta property="og:image" content="https://nosugark.github.io/ReaLingo/promo-poster.jpg" />
 <meta property="og:type" content="website" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet" />
 <style>
 :root {
-  --bg: #f6f7fb;
-  --wash-a: #cfe0ff;
-  --wash-b: #e4d6ff;
-  --wash-c: #cdf3ec;
-  --card: rgba(255, 255, 255, 0.72);
-  --card-hi: rgba(255, 255, 255, 0.92);
-  --ink-1: #14161a;
-  --ink-2: #4a505a;
-  --ink-3: #868d99;
-  --hairline: rgba(20, 22, 26, 0.09);
-  --accent: #0a84ff;
-  --accent-2: #7c5cff;
-  --accent-3: #00c7a8;
-  --shadow: 0 1px 2px rgba(20, 22, 26, .05), 0 14px 40px rgba(20, 22, 26, .09);
-  --shadow-lg: 0 2px 4px rgba(20, 22, 26, .06), 0 30px 70px rgba(20, 22, 26, .13);
-  --bar: rgba(246, 247, 251, .74);
-  --r: 18px;
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --sunk: #ececf0;
+  --ink-1: #1d1d1f;
+  --ink-2: #6e6e73;
+  --ink-3: #a1a1a6;
+  --hairline: rgba(0, 0, 0, .08);
+  --hero: #0a84ff;
+  --grad: linear-gradient(100deg, #0a5cff 0%, #0a84ff 38%, #12c9a5 100%);
+  --float: 0 50px 100px -30px rgba(20, 30, 60, .32), 0 30px 60px -40px rgba(20, 30, 60, .38);
+  --card: 0 18px 50px -24px rgba(20, 30, 60, .25);
+  --bar: rgba(245, 245, 247, .74);
+  --ease: cubic-bezier(.16, 1, .3, 1);
+  --display: "Inter", -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  --mono: ui-monospace, "JetBrains Mono", "Cascadia Code", monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0d0f13;
-    --wash-a: #16294e;
-    --wash-b: #281c4d;
-    --wash-c: #0e3b38;
-    --card: rgba(255, 255, 255, 0.05);
-    --card-hi: rgba(255, 255, 255, 0.085);
-    --ink-1: #f2f4f8;
-    --ink-2: #b3bac6;
-    --ink-3: #7b828f;
-    --hairline: rgba(255, 255, 255, 0.11);
-    --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 14px 40px rgba(0, 0, 0, .45);
-    --shadow-lg: 0 2px 4px rgba(0, 0, 0, .4), 0 30px 70px rgba(0, 0, 0, .55);
-    --bar: rgba(13, 15, 19, .72);
+    --bg: #0b0c0f; --surface: #17191e; --sunk: #212329;
+    --ink-1: #f5f5f7; --ink-2: #a1a1a6; --ink-3: #6e6e73;
+    --hairline: rgba(255, 255, 255, .1);
+    --float: 0 50px 100px -30px rgba(0, 0, 0, .7), 0 30px 60px -40px rgba(0, 0, 0, .8);
+    --card: 0 18px 50px -24px rgba(0, 0, 0, .6);
+    --bar: rgba(11, 12, 15, .74);
   }
 }
-
 * { box-sizing: border-box; }
 html { color-scheme: light dark; scroll-behavior: smooth; }
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--ink-1);
-  font: 15px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
-        "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
-}
-/* Three washes that drift slowly past each other — the app's own window palette, moving. */
-body::before {
-  content: "";
-  position: fixed;
-  inset: -20%;
-  z-index: -1;
-  background:
-    radial-gradient(760px 520px at 18% 12%, var(--wash-a), transparent 62%),
-    radial-gradient(680px 480px at 82% 6%, var(--wash-b), transparent 60%),
-    radial-gradient(720px 520px at 55% 88%, var(--wash-c), transparent 62%);
-  /* Its own compositing layer: a fixed, endlessly animating backdrop under a
-     backdrop-filtered sticky bar otherwise leaves repaint seams while scrolling. */
-  will-change: transform;
-  animation: drift 26s ease-in-out infinite alternate;
-}
-@keyframes drift {
-  from { transform: translate3d(-2%, -1%, 0) scale(1); }
-  to   { transform: translate3d(3%, 2%, 0) scale(1.08); }
-}
-
-.wrap { max-width: 980px; margin: 0 auto; padding: 0 20px; }
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; text-underline-offset: 3px; }
-
-/* ---- both languages ship; CSS picks one ---- */
+body { margin: 0; background: var(--bg); color: var(--ink-1); font: 17px/1.6 var(--display); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 html[lang="en"] .zh { display: none; }
 html[lang="zh"] .en { display: none; }
+a { color: inherit; }
+img { display: block; max-width: 100%; height: auto; } /* the width/height attributes only reserve the aspect ratio */
+code { font-family: var(--mono); font-size: .86em; padding: 2px 7px; border-radius: 6px; background: var(--sunk); }
 
-/* ---- reveal on scroll ---- */
-.reveal {
-  opacity: 0;
-  transform: translateY(18px);
-  transition: opacity .7s cubic-bezier(.2, .7, .3, 1), transform .7s cubic-bezier(.2, .7, .3, 1);
-  transition-delay: var(--d, 0s);
+.wrap { width: min(1180px, 100% - 40px); margin: 0 auto; }
+.grad { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.kicker { font-size: 15px; font-weight: 700; letter-spacing: .04em; color: var(--hero); text-transform: uppercase; }
+.h2 { font-size: clamp(34px, 5vw, 60px); font-weight: 800; letter-spacing: -.035em; line-height: 1.1; margin: 10px 0 0; }
+.lead { font-size: clamp(17px, 1.8vw, 20px); color: var(--ink-2); margin: 18px 0 0; max-width: 640px; }
+section { padding: clamp(80px, 11vw, 140px) 0; }
+.head { max-width: 760px; }
+
+/* ---------------- header ---------------- */
+header {
+  position: fixed; inset: 0 0 auto 0; z-index: 50; display: flex; align-items: center; gap: 12px;
+  height: 56px; padding: 0 max(20px, calc((100% - 1180px) / 2));
+  background: var(--bar); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--hairline);
 }
+header img { width: 26px; height: 26px; }
+header .name { font-weight: 700; }
+header nav { margin-left: auto; display: flex; align-items: center; gap: 22px; font-size: 14px; }
+header nav a { text-decoration: none; color: var(--ink-2); transition: color .2s; }
+header nav a:hover { color: var(--ink-1); }
+#lang { font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--hairline); background: transparent; color: var(--ink-1); }
+
+.btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 26px; border-radius: 999px; font-weight: 600; font-size: 17px; text-decoration: none; transition: transform .3s var(--ease), box-shadow .3s var(--ease); }
+.btn:hover { transform: translateY(-2px); }
+.btn.primary { color: #fff; background: var(--hero); box-shadow: 0 14px 34px -12px rgba(10, 132, 255, .8); }
+.btn.ghost { color: var(--hero); padding-left: 6px; }
+.btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.reveal { opacity: 0; transform: translateY(32px); transition: opacity .9s var(--ease), transform 1s var(--ease); transition-delay: var(--d, 0s); }
 .reveal.in { opacity: 1; transform: none; }
 
-/* ---- top bar ---- */
-header {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  /* Full-bleed bar, contents still aligned to the 980px column. */
-  padding: 14px max(20px, calc((100% - 980px) / 2 + 20px));
-  background: var(--bar);
-  backdrop-filter: blur(16px) saturate(170%);
-  -webkit-backdrop-filter: blur(16px) saturate(170%);
+/* ---------------- hero: the logo first, then the pitch, then the product ---------------- */
+.hero { position: relative; padding: 120px 0 70px; text-align: center; overflow: hidden; }
+#tunnel { position: absolute; left: 0; top: 0; width: 100%; height: 100vh; min-height: 640px; pointer-events: none; }
+.hero::before { /* a soft clearing behind the logo and headline, so the words never fight the copy */
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 100vh; min-height: 640px; pointer-events: none;
+  background: radial-gradient(ellipse 42% 38% at 50% 36%, var(--bg) 35%, transparent 78%);
 }
-header img { width: 28px; height: 28px; border-radius: 7px; }
-header .name { font-weight: 640; letter-spacing: .2px; }
-header nav { margin-left: auto; display: flex; align-items: center; gap: 16px; font-size: 13.5px; }
-header nav a { color: var(--ink-2); }
-header nav a:hover { color: var(--ink-1); }
-#lang {
-  font: inherit;
-  font-size: 13px;
-  padding: 5px 11px;
-  border: 1px solid var(--hairline);
-  border-radius: 999px;
-  background: var(--card);
-  color: var(--ink-2);
-  cursor: pointer;
-  transition: color .2s, border-color .2s;
+.hero > .wrap { position: relative; z-index: 1; }
+.hero .logo { width: min(440px, 78%); margin: 0 auto; }
+.hero h1 { font-size: clamp(40px, 6vw, 72px); font-weight: 800; letter-spacing: -.04em; line-height: 1.08; margin: 34px 0 0; }
+.hero .lead { margin-left: auto; margin-right: auto; }
+.hero .cta { justify-content: center; }
+.hero .pill { margin-top: 26px; }
+.hero .shot { max-width: 1040px; margin: 70px auto 0; }
+.pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; font-size: 14px; font-weight: 600; background: var(--surface); box-shadow: var(--card); text-decoration: none; }
+.pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--grad); }
+.cta { display: flex; align-items: center; gap: 10px; margin-top: 30px; flex-wrap: wrap; }
+.cta-note { font-size: 13px; color: var(--ink-3); margin-top: 10px; min-height: 1.2em; }
+.shot { position: relative; }
+.shot img { border-radius: 12px; box-shadow: var(--float); }
+/* a live subtitle bar hovering over the screenshot */
+.live {
+  position: absolute; left: 6%; right: 6%; bottom: -34px; padding: 16px 22px; border-radius: 20px; text-align: center;
+  background: rgba(10, 12, 18, .78); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .16);
 }
-#lang:hover { color: var(--ink-1); border-color: var(--accent); }
+.live .s { color: #a8c0dd; font-size: 14px; }
+.live .t { color: #fff; font-weight: 700; font-size: clamp(18px, 2vw, 24px); margin-top: 2px; transition: opacity .35s, transform .5s var(--ease); }
+.live .t.swap { opacity: 0; transform: translateY(8px); }
+.targets { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 64px; }
+.targets button { font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; padding: 8px 15px; border-radius: 999px; border: 1px solid var(--hairline); background: var(--surface); color: var(--ink-2); transition: all .3s var(--ease); }
+.targets button.on { background: var(--ink-1); color: var(--bg); border-color: transparent; }
+.targets .hint { width: 100%; text-align: center; font-size: 13px; color: var(--ink-3); margin-bottom: 4px; }
 
-/* ---- hero ---- */
-.hero { padding: 42px 0 10px; text-align: center; }
-.hero > * { animation: rise .9s cubic-bezier(.2, .7, .3, 1) both; }
-.hero > *:nth-child(2) { animation-delay: .08s; }
-.hero > *:nth-child(3) { animation-delay: .16s; }
-.hero > *:nth-child(4) { animation-delay: .24s; }
-.hero > *:nth-child(5) { animation-delay: .32s; }
-.hero > *:nth-child(6) { animation-delay: .40s; }
-.hero > *:nth-child(7) { animation-delay: .48s; }
-@keyframes rise { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+/* ---------------- three steps ---------------- */
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 50px; counter-reset: s; }
+.steps > div { background: var(--surface); border-radius: 24px; padding: 30px; box-shadow: var(--card); position: relative; }
+.steps > div::before { counter-increment: s; content: counter(s); display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; font-weight: 800; color: #fff; background: var(--grad); }
+.steps b { display: block; font-size: 22px; margin-top: 18px; }
+.steps p { color: var(--ink-2); font-size: 15px; margin: 8px 0 0; }
+.steps a { color: var(--hero); }
 
-.hero img.banner { width: min(340px, 72vw); height: auto; }
-.hero h1 {
-  margin: 22px 0 0;
-  font-size: clamp(28px, 5.2vw, 44px);
-  line-height: 1.2;
-  letter-spacing: -0.5px;
-  font-weight: 680;
-}
-.hero h1 em {
-  font-style: normal;
-  background: linear-gradient(100deg, var(--accent), var(--accent-2) 55%, var(--accent-3));
-  background-size: 220% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: hue 9s ease-in-out infinite alternate;
-}
-@keyframes hue { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+/* ---------------- playground ---------------- */
+.play { display: grid; grid-template-columns: 340px 1fr; gap: 30px; margin-top: 50px; align-items: stretch; }
+.panel { background: var(--surface); border-radius: 24px; padding: 24px; box-shadow: var(--card); display: flex; flex-direction: column; gap: 18px; }
+.panel label, .panel .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 15px; font-weight: 600; }
+.panel .k { font-size: 12px; font-weight: 700; letter-spacing: .06em; color: var(--ink-3); }
+.seg { display: flex; padding: 3px; gap: 3px; border-radius: 12px; background: var(--sunk); }
+.seg button { flex: 1; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; padding: 7px 4px; border: 0; border-radius: 9px; background: transparent; color: var(--ink-2); transition: all .25s var(--ease); }
+.seg button.on { background: var(--surface); color: var(--ink-1); box-shadow: 0 2px 8px -2px rgba(0, 0, 0, .2); }
+input[type=range] { width: 150px; accent-color: var(--hero); }
+.sw { width: 46px; height: 28px; border-radius: 999px; border: 0; padding: 0; cursor: pointer; background: var(--sunk); position: relative; transition: background .3s; }
+.sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .3); transition: transform .35s var(--ease); }
+.sw.on { background: var(--hero); }
+.sw.on::after { transform: translateX(18px); }
+.swatches { display: flex; gap: 8px; }
+.swatches button { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--hairline); cursor: pointer; }
+.swatches button.on { box-shadow: 0 0 0 2px var(--hero); }
+.screen { position: relative; border-radius: 22px; overflow: hidden; min-height: 400px; box-shadow: var(--float);
+  background: radial-gradient(ellipse at 30% 30%, #2a3b66, transparent 60%), radial-gradient(ellipse at 80% 70%, #134a4a, transparent 55%), #0c0f18; }
+.screen .bars { position: absolute; left: 8%; right: 8%; top: 12%; height: 42%; display: flex; align-items: flex-end; gap: 4%; }
+.screen .bars i { flex: 1; border-radius: 8px; opacity: .45; }
+.screen .ov { position: absolute; left: 6%; right: 6%; bottom: 8%; padding: 14px 24px; border-radius: 18px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: all .3s var(--ease); }
+.screen .ov p { margin: 0; line-height: 1.4; }
+.screen .ov .s { font-size: .62em; font-weight: 500; color: #a8c0dd; margin-bottom: .2em; }
+.screen .ov .t { font-weight: 700; }
+.screen .ov.outline p { text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 2px 10px rgba(0, 0, 0, .85); }
 
-.hero p.sub {
-  margin: 14px auto 0;
-  max-width: 34em;
-  font-size: clamp(15px, 2.2vw, 17px);
-  color: var(--ink-2);
-}
+/* ---------------- languages ---------------- */
+.langbar { display: flex; align-items: center; gap: 16px; margin-top: 40px; flex-wrap: wrap; }
+.langbar input { flex: 1; min-width: 220px; font: inherit; padding: 14px 20px; border-radius: 14px; border: 1px solid var(--hairline); background: var(--surface); color: var(--ink-1); outline: none; }
+.langbar input:focus { border-color: var(--hero); box-shadow: 0 0 0 4px rgba(10, 132, 255, .15); }
+.langbar .count { color: var(--ink-2); font-size: 15px; }
+.legend { display: inline-flex; align-items: center; gap: 6px; }
+.langs { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-top: 22px; }
+.langs div { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 14px; border-radius: 14px; background: var(--surface); font-size: 15px; font-weight: 600; transition: opacity .3s, transform .3s var(--ease); }
+.langs div small { color: var(--ink-3); font-weight: 500; font-size: 12px; font-family: var(--mono); }
+.langs svg, .legend svg { width: 16px; height: 16px; flex: none; color: var(--hero); }
+.langs div.off { display: none; }
 
-/* ---- the live subtitle bar: what the app actually looks like in use ---- */
-/* Pulled up over the screenshot's bottom edge: a negative margin overlaps a fixed
-   46px at every width, where an absolute inset would swallow a phone-sized shot. */
-.hero-visual { position: relative; margin-top: 34px; }
-.hero-visual img {
-  display: block;
-  width: 100%;
-  height: auto;
-  border-radius: var(--r);
-  border: 1px solid var(--hairline);
-  box-shadow: var(--shadow-lg);
-}
-.demo {
-  position: relative;
-  z-index: 2;
-  margin: -46px auto 0;
-  width: min(620px, 90%);
-  padding: 16px 20px 18px;
-  border-radius: var(--r);
-  background: var(--card);
-  border: 1px solid var(--hairline);
-  box-shadow: var(--shadow-lg);
-  backdrop-filter: blur(22px) saturate(170%);
-  -webkit-backdrop-filter: blur(22px) saturate(170%);
-  text-align: left;
-}
-.demo .top { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
-.dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--accent-3);
-  box-shadow: 0 0 0 0 rgba(0, 199, 168, .55);
-  animation: pulse 2s ease-out infinite;
-}
-@keyframes pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(0, 199, 168, .5); }
-  70%  { box-shadow: 0 0 0 9px rgba(0, 199, 168, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(0, 199, 168, 0); }
-}
-.demo .tag { font-size: 11.5px; color: var(--ink-3); letter-spacing: .3px; }
-.wave { margin-left: auto; display: flex; align-items: flex-end; gap: 2.5px; height: 15px; }
-.wave i {
-  width: 2.5px;
-  border-radius: 2px;
-  background: linear-gradient(var(--accent), var(--accent-2));
-  animation: bounce 1.1s ease-in-out infinite;
-}
-@keyframes bounce { 0%, 100% { height: 3px; opacity: .55; } 50% { height: 15px; opacity: 1; } }
+/* ---------------- features: alternating rows ---------------- */
+.rows { display: flex; flex-direction: column; gap: 90px; margin-top: 60px; }
+.feat { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+.feat:nth-child(even) .art { order: -1; }
+.feat h3 { font-size: clamp(26px, 3vw, 36px); font-weight: 800; letter-spacing: -.03em; margin: 8px 0 0; }
+.feat p { color: var(--ink-2); margin: 14px 0 0; }
+.feat ul { margin: 18px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.feat li { display: flex; gap: 10px; font-size: 16px; }
+.feat li::before { content: ""; flex: none; width: 18px; height: 18px; margin-top: 4px; border-radius: 50%; background: var(--hero) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4 8-9'/%3E%3C/svg%3E") center/12px no-repeat; }
+.art { background: var(--surface); border-radius: 28px; padding: 30px; box-shadow: var(--card); min-height: 300px; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+.src-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.src-tabs div { padding: 20px 14px; border-radius: 18px; background: var(--sunk); text-align: center; font-weight: 700; }
+.src-tabs svg { width: 30px; height: 30px; margin: 0 auto 8px; display: block; fill: none; stroke: var(--hero); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.exts { display: flex; flex-wrap: wrap; gap: 6px; }
+.exts span { font-family: var(--mono); font-size: 13px; padding: 4px 10px; border-radius: 8px; background: var(--sunk); color: var(--ink-2); }
+.voices { display: flex; flex-wrap: wrap; gap: 8px; }
+.voices span { padding: 7px 14px; border-radius: 999px; background: var(--sunk); font-size: 14px; font-weight: 600; }
+.voices span.on { background: var(--hero); color: #fff; }
+.term { font-family: var(--mono); font-size: 14px; line-height: 1.9; padding: 18px 20px; border-radius: 16px; background: var(--sunk); white-space: pre-wrap; overflow-wrap: anywhere; }
+.feat > *, .play > * { min-width: 0; } /* a grid track is never narrower than its content otherwise */
+.term .c { color: var(--ink-3); }
+.lockrow { display: flex; align-items: center; gap: 16px; padding: 16px 18px; border-radius: 16px; background: var(--sunk); }
+.lockrow svg { width: 30px; height: 30px; flex: none; fill: none; stroke: var(--hero); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.lockrow b { display: block; }
+.lockrow small { color: var(--ink-2); }
 
-.demo .src {
-  min-height: 1.6em;
-  font-size: 13.5px;
-  color: var(--ink-3);
-}
-.demo .src::after {
-  content: "";
-  display: inline-block;
-  width: 1.5px;
-  height: 1em;
-  margin-left: 2px;
-  vertical-align: -2px;
-  background: var(--accent);
-  animation: caret 1s steps(1) infinite;
-}
-@keyframes caret { 50% { opacity: 0; } }
-.demo .dst {
-  min-height: 1.45em;
-  margin-top: 7px;
-  font-size: clamp(19px, 3.4vw, 24px);
-  font-weight: 620;
-  letter-spacing: -0.2px;
-  opacity: 0;
-  transform: translateY(6px);
-  transition: opacity .45s, transform .45s;
-}
-.demo .dst.show { opacity: 1; transform: none; }
+/* ---------------- platforms + faq ---------------- */
+.scroll-x { margin-top: 40px; overflow-x: auto; border-radius: 20px; box-shadow: var(--card); }
+table { width: 100%; min-width: 680px; border-collapse: collapse; background: var(--surface); font-size: 15px; }
+th, td { text-align: left; padding: 16px 20px; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+th { font-size: 13px; color: var(--ink-3); font-weight: 700; letter-spacing: .04em; }
+tr:last-child td { border-bottom: 0; }
+td.y { color: #30b158; font-weight: 700; }
+td.n { color: var(--ink-3); font-weight: 700; }
+td small { color: var(--ink-2); }
+.faq { margin-top: 40px; display: grid; gap: 12px; }
+.faq details { background: var(--surface); border-radius: 18px; box-shadow: var(--card); padding: 0 24px; }
+.faq summary { cursor: pointer; list-style: none; padding: 20px 0; font-weight: 700; font-size: 17px; display: flex; justify-content: space-between; gap: 20px; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; font-size: 24px; line-height: 1; color: var(--hero); transition: transform .3s var(--ease); }
+.faq details[open] summary::after { transform: rotate(45deg); }
+.faq details p { margin: 0 0 20px; color: var(--ink-2); font-size: 15px; }
 
-/* ---- buttons ---- */
-.cta { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 30px; }
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 24px;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  font-weight: 560;
-  font-size: 14.5px;
-  transition: transform .22s cubic-bezier(.2, .7, .3, 1), box-shadow .22s, filter .22s;
-}
-.btn:hover { text-decoration: none; transform: translateY(-2px); }
-.btn.primary {
-  color: #fff;
-  background: linear-gradient(100deg, var(--accent), var(--accent-2));
-  box-shadow: 0 6px 20px rgba(10, 132, 255, .3);
-}
-.btn.primary:hover { box-shadow: 0 12px 30px rgba(10, 132, 255, .38); filter: brightness(1.06); }
-.btn.ghost { color: var(--ink-1); background: var(--card); border-color: var(--hairline); }
-.btn.ghost:hover { border-color: var(--accent); }
-.btn .dlicon {
-  width: 17px;
-  height: 17px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.9;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.cta-note {
-  margin: 11px 0 0;
-  min-height: 1.2em;
-  font-size: 12.5px;
-  color: var(--ink-3);
-}
-.badges { margin-top: 22px; display: flex; gap: 7px; justify-content: center; flex-wrap: wrap; }
-.badges img { height: 20px; }
+/* ---------------- film + download ---------------- */
+.player { position: relative; margin-top: 40px; border-radius: 22px; overflow: hidden; box-shadow: var(--float); background: #000; aspect-ratio: 16 / 9; }
+.player video { width: 100%; height: 100%; display: block; }
+.player .playbtn { position: absolute; inset: 0; border: 0; cursor: pointer; background: transparent; display: grid; place-items: center; }
+.player .playbtn span { width: 88px; height: 88px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, .88); box-shadow: 0 20px 50px -10px rgba(0, 0, 0, .5); transition: transform .4s var(--ease); }
+.player .playbtn:hover span { transform: scale(1.08); }
+.player .playbtn svg { width: 32px; height: 32px; fill: #1d1d1f; margin-left: 5px; }
+.player.playing .playbtn { display: none; }
+.rel-meta { color: var(--ink-2); margin-top: 12px; min-height: 1.6em; }
+.dl { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 36px; }
+.dl a { position: relative; text-decoration: none; padding: 28px; border-radius: 24px; background: var(--surface); box-shadow: var(--card); display: flex; flex-direction: column; gap: 6px; transition: transform .4s var(--ease), box-shadow .4s var(--ease); }
+.dl a:hover { transform: translateY(-4px); box-shadow: var(--float); }
+.dl .os { width: 32px; height: 32px; fill: var(--ink-1); margin-bottom: 10px; }
+.dl strong { font-size: 24px; letter-spacing: -.02em; }
+.dl .file { color: var(--ink-2); font-size: 14px; word-break: break-all; }
+.dl .size { color: var(--ink-3); font-size: 13px; }
+.dl a.me { box-shadow: 0 0 0 2px var(--hero), var(--card); }
+.dl a.me::after { content: attr(data-me); position: absolute; top: 20px; right: 20px; font-size: 12px; font-weight: 700; color: #fff; background: var(--hero); padding: 4px 10px; border-radius: 999px; }
+.alt, .note { color: var(--ink-2); font-size: 15px; margin-top: 20px; }
+footer { display: flex; gap: 20px; padding: 40px 0 60px; color: var(--ink-3); font-size: 14px; border-top: 1px solid var(--hairline); }
+footer .spacer { flex: 1; }
+footer a { text-decoration: none; }
 
-/* ---- sections ---- */
-section { padding: 52px 0; }
-h2 {
-  margin: 0 0 22px;
-  font-size: 21px;
-  font-weight: 640;
-  letter-spacing: -0.2px;
+@media (max-width: 900px) {
+  .play, .feat { grid-template-columns: 1fr; }
+  .live { bottom: -50px; }
+  .feat:nth-child(even) .art { order: 0; }
+  .steps, .dl { grid-template-columns: 1fr; }
+  header nav .hide-sm { display: none; }
+  table { font-size: 13px; } th, td { padding: 12px; }
+  .src-tabs div { padding: 16px 6px; font-size: 14px; }
 }
-
-/* ---- video ---- */
-.player {
-  position: relative;
-  border-radius: var(--r);
-  overflow: hidden;
-  border: 1px solid var(--hairline);
-  box-shadow: var(--shadow-lg);
-  background: #000;
-  aspect-ratio: 16 / 9;
-}
-.player video { display: block; width: 100%; height: 100%; object-fit: cover; }
-.player button.play {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-  background: rgba(10, 12, 16, .14);
-  display: grid;
-  place-items: center;
-  transition: background .25s;
-}
-.player button.play:hover { background: rgba(10, 12, 16, .05); }
-.player button.play span {
-  width: 68px;
-  height: 68px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: rgba(255, 255, 255, .9);
-  box-shadow: 0 10px 34px rgba(0, 0, 0, .3);
-  transition: transform .25s cubic-bezier(.2, .7, .3, 1);
-}
-.player button.play:hover span { transform: scale(1.09); }
-.player button.play svg { width: 22px; height: 22px; margin-left: 4px; fill: #14161a; }
-.player.playing button.play { display: none; }
-
-/* ---- feature cards ---- */
-.grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
-.card {
-  padding: 18px 20px;
-  border-radius: var(--r);
-  background: var(--card);
-  border: 1px solid var(--hairline);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  transition: transform .25s cubic-bezier(.2, .7, .3, 1), background .25s, border-color .25s, box-shadow .25s;
-}
-.card:hover {
-  transform: translateY(-3px);
-  background: var(--card-hi);
-  border-color: rgba(10, 132, 255, .35);
-  box-shadow: var(--shadow);
-}
-.card h3 { margin: 0 0 6px; font-size: 15px; font-weight: 620; }
-.card p { margin: 0; font-size: 13.5px; color: var(--ink-2); }
-
-/* ---- download ---- */
-.dl { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
-.dl a {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 26px 18px 20px;
-  border-radius: var(--r);
-  background: var(--card);
-  border: 1px solid var(--hairline);
-  color: inherit;
-  text-align: center;
-  overflow: hidden;
-  transition: transform .25s cubic-bezier(.2, .7, .3, 1), border-color .25s, box-shadow .25s, background .25s;
-}
-.dl a::after {
-  content: "";
-  position: absolute;
-  inset: auto 0 0 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--accent-3));
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform .35s cubic-bezier(.2, .7, .3, 1);
-}
-.dl a:hover {
-  text-decoration: none;
-  transform: translateY(-4px);
-  background: var(--card-hi);
-  border-color: rgba(10, 132, 255, .4);
-  box-shadow: var(--shadow);
-}
-.dl a:hover::after { transform: scaleX(1); }
-.dl svg.os {
-  width: 38px;
-  height: 38px;
-  margin-bottom: 8px;
-  fill: var(--ink-1);
-  opacity: .88;
-  transition: transform .3s cubic-bezier(.2, .7, .3, 1), opacity .3s;
-}
-.dl a:hover svg.os { transform: translateY(-2px) scale(1.06); opacity: 1; }
-.dl strong { font-size: 15.5px; font-weight: 640; }
-.dl .file {
-  font-size: 11.5px;
-  color: var(--ink-3);
-  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
-  word-break: break-all;
-  line-height: 1.45;
-}
-.dl .size { font-size: 12px; color: var(--ink-2); font-weight: 560; }
-/* The visitor's own platform, so the obvious button is the right one. */
-.dl a.me { border-color: rgba(10, 132, 255, .5); box-shadow: 0 0 0 3px rgba(10, 132, 255, .1); }
-.dl a.me::before {
-  content: attr(data-me);
-  position: absolute;
-  top: 9px;
-  right: 10px;
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: .3px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  color: #fff;
-  background: linear-gradient(100deg, var(--accent), var(--accent-2));
-}
-.rel-meta {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  margin: -6px 0 18px;
-  font-size: 12.5px;
-  color: var(--ink-3);
-}
-.rel-meta b { font-weight: 620; color: var(--ink-2); }
-.alt { margin-top: 14px; text-align: center; font-size: 13px; color: var(--ink-3); }
-.alt a { color: var(--ink-2); }
-.alt a:hover { color: var(--accent); }
-.note { margin-top: 14px; font-size: 13px; color: var(--ink-3); }
-.note code {
-  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
-  font-size: 12.5px;
-  padding: 1px 5px;
-  border-radius: 5px;
-  background: var(--hairline);
-}
-
-/* ---- footer ---- */
-footer {
-  padding: 34px 0 48px;
-  border-top: 1px solid var(--hairline);
-  font-size: 13px;
-  color: var(--ink-3);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 18px;
-  align-items: center;
-}
-footer .spacer { margin-left: auto; }
-
-/* Motion is decoration here; none of it carries meaning on its own. */
+@media (max-width: 520px) { header nav .hide-xs { display: none; } }
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
-  *, *::before, *::after {
-    animation-duration: .001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: .001ms !important;
-  }
+  *, *::before, *::after { animation: none !important; transition-duration: .001ms !important; }
   .reveal { opacity: 1; transform: none; }
 }
 </style>
@@ -469,235 +249,434 @@ footer .spacer { margin-left: auto; }
   <img src="mark.png" alt="" />
   <span class="name">ReaLingo</span>
   <nav>
+    <a class="hide-sm" href="#start"><span class="zh">开始使用</span><span class="en">Get started</span></a>
+    <a class="hide-sm" href="#languages"><span class="zh">语言</span><span class="en">Languages</span></a>
+    <a class="hide-sm" href="#faq"><span class="zh">常见问题</span><span class="en">FAQ</span></a>
     <a href="#download"><span class="zh">下载</span><span class="en">Download</span></a>
-    <a href="https://github.com/noSugarK/ReaLingo">GitHub</a>
+    <a class="hide-xs" href="https://github.com/noSugarK/ReaLingo">GitHub</a>
     <button id="lang" type="button"><span class="zh">English</span><span class="en">中文</span></button>
   </nav>
 </header>
 
-<div class="wrap">
-
-  <div class="hero">
-    <img class="banner" src="banner.png" alt="ReaLingo" />
-    <h1>
-      <span class="zh">把听到的，立刻变成<em>看得懂的</em></span>
-      <span class="en">Hear one language, <em>read another</em></span>
-    </h1>
-    <p class="sub">
-      <span class="zh">基于阿里云百炼 Qwen3.5-LiveTranslate 的桌面同声传译工具。麦克风、系统声音或本地音频进去，译文实时出现在一个可以浮在任何窗口上的字幕条里。</span>
-      <span class="en">A desktop simultaneous interpreter built on Qwen3.5-LiveTranslate. Feed it your microphone, your system audio or a local file; the translation appears live in a subtitle bar that floats over anything.</span>
-    </p>
-
-    <div class="cta">
+<!-- ======================= hero ======================= -->
+<div class="hero">
+  <canvas id="tunnel" aria-hidden="true"></canvas>
+  <div class="wrap">
+    <img class="logo reveal" src="banner.webp" alt="ReaLingo" width="1075" height="320" />
+    <h1 class="reveal" style="--d:.06s"><span class="zh">实时同传，<span class="grad">就在你的桌面</span></span><span class="en">Live interpreting, <span class="grad">on your desktop</span></span></h1>
+    <p class="lead reveal" style="--d:.12s"><span class="zh">开会、看视频、上网课时，把麦克风、系统声音或音频文件交给它，译文实时浮在任何窗口上。开源免费，自带百炼 API Key 即可。</span><span class="en">In a meeting, a video or a lecture: hand it your mic, system audio or a file, and the translation floats live over any window. Free and open source — bring your own Model Studio key.</span></p>
+    <div class="cta reveal" style="--d:.18s">
       <a class="btn primary" id="hero-dl" href="https://github.com/noSugarK/ReaLingo/releases/latest">
-        <svg class="dlicon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0 4.2-4.2M12 14l-4.2-4.2M4.5 17.5v1A2.5 2.5 0 0 0 7 21h10a2.5 2.5 0 0 0 2.5-2.5v-1"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0 4.2-4.2M12 14l-4.2-4.2M4.5 17.5v1A2.5 2.5 0 0 0 7 21h10a2.5 2.5 0 0 0 2.5-2.5v-1"/></svg>
         <span id="hero-dl-text"><span class="zh">下载最新版</span><span class="en">Download</span></span>
       </a>
-      <a class="btn ghost" href="#download">
-        <span class="zh">其他平台</span><span class="en">Other platforms</span>
-      </a>
+      <a class="btn ghost" href="#start"><span class="zh">三步开始 ›</span><span class="en">Three steps ›</span></a>
     </div>
-
     <p class="cta-note" id="hero-note"></p>
-
-    <div class="hero-visual">
-      <img src="screenshot.png" alt="ReaLingo 主界面 / ReaLingo main window" />
-      <div class="demo" aria-hidden="true">
-        <div class="top">
-          <i class="dot"></i>
-          <span class="tag"><span class="zh">系统声音 · 自动检测</span><span class="en">System audio · auto-detect</span></span>
-          <span class="wave" id="wave"></span>
-        </div>
-        <div class="src" id="demo-src"></div>
-        <div class="dst" id="demo-dst"></div>
+    <a class="pill reveal" style="--d:.22s" href="#film"><i></i><span class="zh">0.5 新增：朗读译文 · 看宣传片 ›</span><span class="en">New in 0.5: read aloud · watch the film ›</span></a>
+    <div class="shot reveal" style="--d:.1s">
+      <img src="app.webp" alt="ReaLingo 主界面 / ReaLingo main window" width="1280" height="760" />
+      <div class="live" aria-live="polite">
+        <div class="s">Thanks for joining — let’s get started.</div>
+        <div class="t" id="live-t">感谢大家参加，我们开始吧。</div>
       </div>
     </div>
-
-    <div class="badges">
-      <a href="https://github.com/noSugarK/ReaLingo/releases/latest"><img alt="release" src="https://img.shields.io/github/v/release/noSugarK/ReaLingo?style=flat-square&color=0a84ff" /></a>
-      <a href="https://github.com/noSugarK/ReaLingo/releases"><img alt="downloads" src="https://img.shields.io/github/downloads/noSugarK/ReaLingo/total?style=flat-square&color=5e5ce6" /></a>
-      <a href="https://github.com/noSugarK/ReaLingo/stargazers"><img alt="stars" src="https://img.shields.io/github/stars/noSugarK/ReaLingo?style=flat-square&color=bf5af2" /></a>
-      <a href="https://github.com/noSugarK/ReaLingo/blob/main/LICENSE"><img alt="license" src="https://img.shields.io/github/license/noSugarK/ReaLingo?style=flat-square" /></a>
+    <div class="targets reveal" id="targets">
+      <div class="hint"><span class="zh">点一下，换成另一种目标语言</span><span class="en">Tap to switch the target language</span></div>
     </div>
   </div>
+</div>
 
-  <section>
-    <h2 class="reveal"><span class="zh">一分钟看懂</span><span class="en">See it in a minute</span></h2>
+<!-- ======================= three steps ======================= -->
+<section id="start">
+  <div class="wrap">
+    <div class="head reveal">
+      <div class="kicker"><span class="zh">开始使用</span><span class="en">Get started</span></div>
+      <h2 class="h2"><span class="zh">三步，就能开始翻译</span><span class="en">Three steps and you are translating</span></h2>
+    </div>
+    <div class="steps">
+      <div class="reveal"><b><span class="zh">下载安装</span><span class="en">Install</span></b><p><span class="zh">Windows、macOS、Ubuntu 各有安装包，页面会自动推荐你的系统对应的那个。</span><span class="en">Installers for Windows, macOS and Ubuntu — this page picks the one for your system.</span></p></div>
+      <div class="reveal" style="--d:.08s"><b><span class="zh">填入 API Key</span><span class="en">Add your API key</span></b><p><span class="zh">到 <a href="https://bailian.console.aliyun.com/?tab=model#/api-key">百炼控制台</a> 拿一个 Key（新加坡地域用 <a href="https://bailian.console.alibabacloud.com/?tab=model#/api-key">国际站</a>），粘贴到设置页。它存进系统凭据库，不写进配置文件。</span><span class="en">Get a key from the <a href="https://bailian.console.alibabacloud.com/?tab=model#/api-key">Model Studio console</a> and paste it in Settings. It goes into the OS keychain, not a config file.</span></p></div>
+      <div class="reveal" style="--d:.16s"><b><span class="zh">选来源，点开始</span><span class="en">Pick a source, press start</span></b><p><span class="zh">麦克风、系统声音或音频文件三选一，选好目标语言，打开字幕窗，点「开始翻译」。</span><span class="en">Microphone, system audio or a file; choose the target language, open the overlay, press Start.</span></p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= playground ======================= -->
+<section>
+  <div class="wrap">
+    <div class="head reveal">
+      <div class="kicker"><span class="zh">字幕窗</span><span class="en">The overlay</span></div>
+      <h2 class="h2"><span class="zh">调成你看着最舒服的样子</span><span class="en">Make it look the way you like</span></h2>
+      <p class="lead"><span class="zh">下面这些就是设置里的真实选项，动一动看效果。字幕窗默认置顶，锁定后鼠标点击穿透，在它上面右键还能直接改这些设置。</span><span class="en">These are the real settings — try them. The overlay stays on top, lets clicks through when locked, and takes a right-click to change all this in place.</span></p>
+    </div>
+    <div class="play reveal">
+      <div class="panel" id="panel">
+        <div class="k"><span class="zh">显示内容</span><span class="en">Show</span></div>
+        <div class="seg" data-key="mode"><button data-v="both" class="on"><span class="zh">双语</span><span class="en">Both</span></button><button data-v="target"><span class="zh">仅译文</span><span class="en">Target</span></button><button data-v="source"><span class="zh">仅原文</span><span class="en">Source</span></button></div>
+        <div class="k"><span class="zh">对齐</span><span class="en">Align</span></div>
+        <div class="seg" data-key="align"><button data-v="left"><span class="zh">左</span><span class="en">Left</span></button><button data-v="center" class="on"><span class="zh">中</span><span class="en">Centre</span></button><button data-v="right"><span class="zh">右</span><span class="en">Right</span></button></div>
+        <label><span><span class="zh">背景不透明度</span><span class="en">Background</span></span><input type="range" id="op" min="0" max="100" value="55" /></label>
+        <label><span><span class="zh">字号</span><span class="en">Size</span></span><input type="range" id="fs" min="16" max="40" value="26" /></label>
+        <div class="row"><span><span class="zh">文字描边</span><span class="en">Outline</span></span><button class="sw on" id="outline" aria-label="outline"></button></div>
+        <div class="row"><span><span class="zh">译文颜色</span><span class="en">Text colour</span></span><div class="swatches" id="colors"><button class="on" style="background:#ffffff" data-c="#ffffff"></button><button style="background:#ffe08a" data-c="#ffe08a"></button><button style="background:#8af0d0" data-c="#8af0d0"></button><button style="background:#9cc8ff" data-c="#9cc8ff"></button></div></div>
+      </div>
+      <div class="screen">
+        <div class="bars"><i style="height:40%;background:#4c8dff"></i><i style="height:62%;background:#7a5cff"></i><i style="height:50%;background:#22c3d6"></i><i style="height:82%;background:#5ff0c8"></i><i style="height:100%;background:#4c8dff"></i></div>
+        <div class="ov outline" id="ov">
+          <p class="s">Photosynthesis turns sunlight into chemical energy.</p>
+          <p class="t">光合作用把光能转化为化学能。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= languages ======================= -->
+<section id="languages">
+  <div class="wrap">
+    <div class="head reveal">
+      <div class="kicker"><span class="zh">语言</span><span class="en">Languages</span></div>
+      <h2 class="h2"><span class="zh">你要的语言，大概率都在</span><span class="en">Your language is probably here</span></h2>
+      <p class="lead"><span class="zh">Qwen3.5-LiveTranslate 支持 60 种语言互译，源语言可以自动检测。带喇叭图标的可以朗读译文；也能切回旧模型 Qwen3（18 种）。</span><span class="en">Qwen3.5-LiveTranslate covers 60 languages, with automatic source detection. The ones with a speaker can be read aloud; the older Qwen3 model (18) is still selectable.</span></p>
+    </div>
+    <div class="langbar reveal">
+      <input id="q" type="search" placeholder="搜索语言 / Search…" autocomplete="off" />
+      <span class="count" id="count"></span>
+      <span class="count legend"><svg viewBox="0 0 24 24" fill="none"><path d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z" fill="currentColor"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span class="zh">可朗读</span><span class="en">can be spoken</span></span>
+    </div>
+    <div class="langs reveal" id="langs"></div>
+  </div>
+</section>
+
+<!-- ======================= features ======================= -->
+<section>
+  <div class="wrap">
+    <div class="head reveal">
+      <div class="kicker"><span class="zh">功能</span><span class="en">Features</span></div>
+      <h2 class="h2"><span class="zh">细节都在这里</span><span class="en">The details</span></h2>
+    </div>
+    <div class="rows">
+      <div class="feat">
+        <div class="reveal">
+          <div class="kicker"><span class="zh">音频来源</span><span class="en">Sources</span></div>
+          <h3><span class="zh">听什么，你说了算</span><span class="en">You choose what it listens to</span></h3>
+          <ul>
+            <li><span class="zh">系统声音不用装虚拟声卡：Windows 用 WASAPI 回录，macOS 14.4+ 用 Core Audio tap，Ubuntu 直接读 PulseAudio / PipeWire</span><span class="en">System audio needs no virtual device: WASAPI loopback on Windows, a Core Audio tap on macOS 14.4+, PulseAudio / PipeWire on Ubuntu</span></li>
+            <li><span class="zh">本地文件直接拖进来，边读边翻，带进度条</span><span class="en">Local files stream through with a progress bar</span></li>
+            <li><span class="zh">热词：每行一条「源词=译文」，专有名词按你的说法翻</span><span class="en">Hotwords: “term=translation”, one per line, for names done your way</span></li>
+          </ul>
+        </div>
+        <div class="art reveal" style="--d:.1s">
+          <div class="src-tabs">
+            <div><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg><span class="zh">麦克风</span><span class="en">Mic</span></div>
+            <div><svg viewBox="0 0 24 24"><path d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18.2 6.4a8 8 0 0 1 0 11.2"/></svg><span class="zh">系统声音</span><span class="en">System</span></div>
+            <div><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M10 17v-5l4 2.5z"/></svg><span class="zh">音频文件</span><span class="en">File</span></div>
+          </div>
+          <div class="exts"><span>mp3</span><span>wav</span><span>m4a</span><span>mp4</span><span>aac</span><span>flac</span><span>ogg</span></div>
+        </div>
+      </div>
+
+      <div class="feat">
+        <div class="reveal">
+          <div class="kicker"><span class="zh">朗读译文 · 0.5 新增</span><span class="en">Read aloud · new in 0.5</span></div>
+          <h3><span class="zh">不想盯着字幕，就听它念</span><span class="en">Rather listen than read? It speaks</span></h3>
+          <ul>
+            <li><span class="zh">语言卡片里一个开关，47 种音色任选，语音由模型直接合成</span><span class="en">One switch in the language card, 47 voices, synthesised by the model itself</span></li>
+            <li><span class="zh">录系统声音时，Windows 和 macOS 会把 ReaLingo 自己的朗读排除在外，不会录回去再翻一遍</span><span class="en">When capturing system audio, Windows and macOS leave ReaLingo’s own voice out, so it never translates itself</span></li>
+            <li><span class="zh">用麦克风时扬声器的声音会被收回去，建议戴耳机；Linux 录系统声音时不朗读</span><span class="en">With a microphone, use headphones; on Linux it stays silent while capturing system audio</span></li>
+          </ul>
+        </div>
+        <div class="art reveal" style="--d:.1s"><div class="voices" id="voices"></div></div>
+      </div>
+
+      <div class="feat">
+        <div class="reveal">
+          <div class="kicker"><span class="zh">历史与导出</span><span class="en">History &amp; export</span></div>
+          <h3><span class="zh">开完会，稿子也有了</span><span class="en">The meeting ends, the transcript stays</span></h3>
+          <ul>
+            <li><span class="zh">翻译历史默认不记录，打开开关后一场存成一个文件，可以按场次翻看、搜索、删除</span><span class="en">History is off by default; switch it on and each session becomes one file you can browse, search and delete</span></li>
+            <li><span class="zh">导出 TXT 存稿，导出 SRT 直接给视频配字幕</span><span class="en">Export TXT to keep, SRT to caption a video</span></li>
+            <li><span class="zh">点停止后会等最后一句译完再收尾，不会丢掉结尾</span><span class="en">Stopping waits for the last sentence instead of cutting it off</span></li>
+          </ul>
+        </div>
+        <div class="art reveal" style="--d:.1s">
+<div class="term"><span class="c"># app-data/history/2026-10-08T06-30-12-345Z.jsonl</span>
+{"v":1,"source":"auto","target":"zh","kind":"device",…}
+{"at":1759905014000,"source":"Can everyone see my screen?","target":"大家能看到我的屏幕吗？"}
+{"at":1759905019000,"source":"Let’s keep questions for the end.","target":"问题我们留到最后统一回答。"}</div>
+        </div>
+      </div>
+
+      <div class="feat">
+        <div class="reveal">
+          <div class="kicker"><span class="zh">隐私</span><span class="en">Privacy</span></div>
+          <h3><span class="zh">你的 Key，只在你的电脑上</span><span class="en">Your key stays on your machine</span></h3>
+          <ul>
+            <li><span class="zh">没有中转服务器：应用直接连阿里云百炼，音频只发给它</span><span class="en">No relay server: the app talks to Model Studio directly, and audio goes nowhere else</span></li>
+            <li><span class="zh">API Key 存进 Windows 凭据管理器 / macOS 钥匙串 / Linux Secret Service</span><span class="en">The key lives in Credential Manager, Keychain or Secret Service</span></li>
+            <li><span class="zh">代码全部开源（MIT），可以自己检查、自己编译</span><span class="en">All of it is open source (MIT) — read it, build it yourself</span></li>
+          </ul>
+        </div>
+        <div class="art reveal" style="--d:.1s">
+          <div class="lockrow"><svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg><div><b><span class="zh">系统凭据库</span><span class="en">OS keychain</span></b><small><span class="zh">磁盘上没有明文 Key</span><span class="en">No plaintext key on disk</span></small></div></div>
+          <div class="lockrow"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><div><b><span class="zh">直连百炼</span><span class="en">Direct to Model Studio</span></b><small><span class="zh">WebSocket 由 Rust 内核发起</span><span class="en">The Rust core opens the WebSocket</span></small></div></div>
+          <div class="lockrow"><svg viewBox="0 0 24 24"><path d="M12 3.2l7.6 4.2v9.2L12 20.8 4.4 16.6V7.4z"/><path d="M12 12.2l7.6-4.4M12 12.2v8.6M12 12.2L4.4 7.8"/></svg><div><b><span class="zh">开源 · MIT</span><span class="en">Open source · MIT</span></b><small>Tauri 2 · Rust · Vue 3</small></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= platforms ======================= -->
+<section>
+  <div class="wrap">
+    <div class="head reveal">
+      <div class="kicker"><span class="zh">平台</span><span class="en">Platforms</span></div>
+      <h2 class="h2"><span class="zh">三个系统，各自的做法</span><span class="en">Three systems, three ways in</span></h2>
+    </div>
+    <div class="scroll-x reveal"><table>
+      <thead><tr><th></th><th><span class="zh">麦克风</span><span class="en">Mic</span></th><th><span class="zh">系统声音</span><span class="en">System audio</span></th><th><span class="zh">朗读时排除自身</span><span class="en">Leaves its own voice out</span></th><th><span class="zh">说明</span><span class="en">Notes</span></th></tr></thead>
+      <tbody>
+        <tr><td><b>Windows 10 / 11</b></td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td><small><span class="zh">WASAPI 回录；朗读时改用 process loopback（Windows 10 2004+）</span><span class="en">WASAPI loopback; process loopback while reading aloud (Windows 10 2004+)</span></small></td></tr>
+        <tr><td><b>macOS 14.4+</b></td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td><small><span class="zh">Core Audio tap；首次使用按提示授权</span><span class="en">Core Audio tap; grant access when asked</span></small></td></tr>
+        <tr><td><b>macOS 12 – 14.3</b></td><td class="y">✓</td><td class="n">—</td><td class="n">—</td><td><small><span class="zh">process tap 是 14.4 才有的系统接口</span><span class="en">Process taps arrived in 14.4</span></small></td></tr>
+        <tr><td><b>Ubuntu 22.04+</b></td><td class="y">✓</td><td class="y">✓</td><td class="n">—</td><td><small><span class="zh">PulseAudio / PipeWire 的 monitor 源；录系统声音时不朗读</span><span class="en">PulseAudio / PipeWire monitor sources; no read-aloud while capturing system audio</span></small></td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- ======================= faq ======================= -->
+<section id="faq">
+  <div class="wrap">
+    <div class="head reveal">
+      <div class="kicker"><span class="zh">常见问题</span><span class="en">FAQ</span></div>
+      <h2 class="h2"><span class="zh">你可能想问</span><span class="en">You might be wondering</span></h2>
+    </div>
+    <div class="faq reveal">
+      <details><summary><span class="zh">要花钱吗？</span><span class="en">Does it cost anything?</span></summary><p><span class="zh">ReaLingo 本身开源免费。翻译由阿里云百炼提供，按你自己账号的用量计费，具体价格以百炼官网为准。</span><span class="en">ReaLingo is free and open source. Translation runs on your own Alibaba Cloud Model Studio account and is billed to it — see their pricing.</span></p></details>
+      <details><summary><span class="zh">北京和新加坡地域选哪个？</span><span class="en">Beijing or Singapore region?</span></summary><p><span class="zh">跟你的百炼账号走：国内站的 Key 选北京，国际站的 Key 选新加坡。设置页底部会显示最终连接的地址；业务空间 ID 选填，填了走专属域名。</span><span class="en">Match your account: China-site keys use Beijing, international keys use Singapore. Settings shows the exact endpoint; a workspace ID is optional and switches to its dedicated domain.</span></p></details>
+      <details><summary><span class="zh">macOS 提示「已损坏」或打不开？</span><span class="en">macOS says the app is damaged?</span></summary><p><span class="zh">应用没有经过 Apple 公证。把它拖进「应用程序」后，在终端执行 <code>xattr -dr com.apple.quarantine /Applications/ReaLingo.app</code>，或到「系统设置 → 隐私与安全性」点「仍要打开」。升级后系统声音没反应，就在「屏幕与系统录音」里删掉 ReaLingo 重新授权。</span><span class="en">It is not notarised. After moving it to Applications, run <code>xattr -dr com.apple.quarantine /Applications/ReaLingo.app</code>, or click “Open Anyway” in System Settings → Privacy &amp; Security. If system audio goes quiet after an update, remove ReaLingo under Screen &amp; System Audio Recording and grant it again.</span></p></details>
+      <details><summary><span class="zh">朗读会不会被录回去，越翻越乱？</span><span class="en">Will it record its own voice and loop?</span></summary><p><span class="zh">录系统声音时不会：Windows 和 macOS 都会把 ReaLingo 自己的进程排除在采集之外，Linux 上则不朗读。用麦克风时，扬声器的声音会被物理地收进去，请戴耳机。</span><span class="en">Not with system audio: Windows and macOS leave ReaLingo’s own process out of the capture, and Linux does not speak at all. With a microphone the speakers are physically picked up — use headphones.</span></p></details>
+      <details><summary><span class="zh">翻译记录会存在哪？</span><span class="en">Where are transcripts kept?</span></summary><p><span class="zh">默认不保存。打开翻译流右上角的「记录」后，每场存成 <code>app-data/history/</code> 下的一个 JSONL 文件，可以在「翻译历史」里打开文件夹、导出或删除。</span><span class="en">Nothing is saved by default. Turn on “Record” and each session becomes one JSONL file in <code>app-data/history/</code>, which the History panel can open, export or delete.</span></p></details>
+      <details><summary><span class="zh">Linux 怎么装？</span><span class="en">How do I install on Linux?</span></summary><p><span class="zh">用 apt 装本地包，依赖会一起装上：<code>sudo apt install ./ReaLingo_*_amd64.deb</code>。用 <code>dpkg -i</code> 不会解析依赖。</span><span class="en">Install with apt so the dependencies come along: <code>sudo apt install ./ReaLingo_*_amd64.deb</code>. <code>dpkg -i</code> resolves none of them.</span></p></details>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= film ======================= -->
+<section id="film">
+  <div class="wrap">
+    <div class="head reveal">
+      <div class="kicker"><span class="zh">宣传片</span><span class="en">Film</span></div>
+      <h2 class="h2"><span class="zh">一分钟看它怎么工作</span><span class="en">A minute of it at work</span></h2>
+    </div>
     <div class="player reveal" id="player">
-      <video id="video" poster="promo-poster.jpg" preload="none" playsinline>
-        <source src="promo.mp4" type="video/mp4" />
-      </video>
-      <button class="play" type="button" id="play" aria-label="Play">
-        <span><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg></span>
-      </button>
+      <video id="video" poster="promo-poster.jpg" preload="none" playsinline><source src="promo.mp4" type="video/mp4" /></video>
+      <button class="playbtn" type="button" id="play" aria-label="Play"><span><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg></span></button>
     </div>
-  </section>
+  </div>
+</section>
 
-  <section>
-    <h2 class="reveal"><span class="zh">能做什么</span><span class="en">What it does</span></h2>
-    <div class="grid">
-      <div class="card reveal" style="--d:.00s">
-        <h3><span class="zh">三种音频来源</span><span class="en">Three audio sources</span></h3>
-        <p>
-          <span class="zh">麦克风、系统声音、本地音频文件。Windows、macOS、Ubuntu 三个平台都能直接采系统声音，不用手动转接。</span>
-          <span class="en">Microphone, system audio, or a local file. Windows, macOS and Ubuntu all capture system audio directly — no manual routing.</span>
-        </p>
-      </div>
-      <div class="card reveal" style="--d:.06s">
-        <h3><span class="zh">60 种语言互译</span><span class="en">60 languages</span></h3>
-        <p>
-          <span class="zh">源语言可自动检测。也能切回旧模型 Qwen3（18 语种），语言选择器会跟着收窄。</span>
-          <span class="en">Source language auto-detected. Switchable to the older Qwen3 model (18 languages); the pickers narrow to match.</span>
-        </p>
-      </div>
-      <div class="card reveal" style="--d:.12s">
-        <h3><span class="zh">独立字幕窗</span><span class="en">Floating subtitles</span></h3>
-        <p>
-          <span class="zh">默认置顶，双语 / 仅译文 / 仅原文可选，不透明度、字号、颜色、描边都能调。锁定后鼠标点击穿透，不挡住下面的播放器。</span>
-          <span class="en">Always on top; bilingual, translation-only or source-only. Opacity, size, colour and outline are adjustable. Lock it and clicks pass straight through to the player underneath.</span>
-        </p>
-      </div>
-      <div class="card reveal" style="--d:.00s">
-        <h3><span class="zh">系统托盘</span><span class="en">Tray control</span></h3>
-        <p>
-          <span class="zh">主窗可收进托盘，翻译和字幕照常跑。右键菜单直接开始 / 停止、开关字幕窗、切换点击穿透。</span>
-          <span class="en">Tuck the main window into the tray and keep translating. The right-click menu starts and stops, toggles the overlay and its click-through.</span>
-        </p>
-      </div>
-      <div class="card reveal" style="--d:.06s">
-        <h3><span class="zh">API Key 存在凭据库</span><span class="en">Key in the OS keychain</span></h3>
-        <p>
-          <span class="zh">Windows 凭据管理器、macOS 钥匙串、Linux Secret Service —— 磁盘上不存在可读形式，配置文件里只剩其余设置。</span>
-          <span class="en">Windows Credential Manager, macOS Keychain, Linux Secret Service. Nothing readable is left on disk; the config file keeps only the rest.</span>
-        </p>
-      </div>
-      <div class="card reveal" style="--d:.12s">
-        <h3><span class="zh">导出与排查</span><span class="en">Export &amp; inspect</span></h3>
-        <p>
-          <span class="zh">译文导出 TXT / SRT。内置原始事件查看器，能直接看到服务端回了什么。</span>
-          <span class="en">Export the transcript as TXT or SRT. A built-in raw-event viewer shows exactly what the server sent.</span>
-        </p>
-      </div>
+<!-- ======================= download ======================= -->
+<section id="download">
+  <div class="wrap">
+    <div class="head reveal">
+      <div class="kicker"><span class="zh">下载</span><span class="en">Download</span></div>
+      <h2 class="h2"><span class="zh">免费下载</span><span class="en">Free download</span></h2>
+      <p class="rel-meta" id="rel-meta"></p>
     </div>
-  </section>
-
-  <section id="download">
-    <h2 class="reveal"><span class="zh">下载</span><span class="en">Download</span></h2>
-    <p class="rel-meta reveal" id="rel-meta"></p>
     <div class="dl">
-      <a class="reveal" style="--d:.00s" id="dl-win" data-os="win"
-         href="https://github.com/noSugarK/ReaLingo/releases/latest">
+      <a class="reveal" style="--d:.00s" id="dl-win" data-os="win" href="https://github.com/noSugarK/ReaLingo/releases/latest">
         <svg class="os" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.1 10.44 4.07 10.44 11.26 3 11.3ZM11.35 3.94 21.23 2.5 21.23 11.2 11.35 11.26ZM3 12.34 10.44 12.38 10.44 19.57 3 18.54ZM11.35 12.4 21.23 12.4 21.23 21.1 11.35 19.71Z"/></svg>
-        <strong>Windows</strong>
-        <span class="file">.exe</span>
-        <span class="size"></span>
+        <strong>Windows</strong><span class="file">.exe</span><span class="size"></span>
       </a>
-      <a class="reveal" style="--d:.06s" id="dl-mac" data-os="mac"
-         href="https://github.com/noSugarK/ReaLingo/releases/latest">
+      <a class="reveal" style="--d:.08s" id="dl-mac" data-os="mac" href="https://github.com/noSugarK/ReaLingo/releases/latest">
         <svg class="os" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>
-        <strong>macOS</strong>
-        <span class="file">.dmg</span>
-        <span class="size"></span>
+        <strong>macOS</strong><span class="file">.dmg</span><span class="size"></span>
       </a>
-      <a class="reveal" style="--d:.12s" id="dl-linux" data-os="linux"
-         href="https://github.com/noSugarK/ReaLingo/releases/latest">
+      <a class="reveal" style="--d:.16s" id="dl-linux" data-os="linux" href="https://github.com/noSugarK/ReaLingo/releases/latest">
         <svg class="os" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.132 1.884 1.071.771-.06 1.592-.536 2.257-1.306.631-.765 1.683-1.084 2.378-1.503.348-.199.629-.469.649-.853.023-.4-.2-.811-.714-1.376v-.097l-.003-.003c-.17-.2-.25-.535-.338-.926-.085-.401-.182-.786-.492-1.046h-.003c-.059-.054-.123-.067-.188-.135a.357.357 0 00-.19-.064c.431-1.278.264-2.55-.173-3.694-.533-1.41-1.465-2.638-2.175-3.483-.796-1.005-1.576-1.957-1.56-3.368.026-2.152.236-6.133-3.544-6.139zm.529 3.405h.013c.213 0 .396.062.584.198.19.135.33.332.438.533.105.259.158.459.166.724 0-.02.006-.04.006-.06v.105a.086.086 0 01-.004-.021l-.004-.024a1.807 1.807 0 01-.15.706.953.953 0 01-.213.335.71.71 0 00-.088-.042c-.104-.045-.198-.064-.284-.133a1.312 1.312 0 00-.22-.066c.05-.06.146-.133.183-.198.053-.128.082-.264.088-.402v-.02a1.21 1.21 0 00-.061-.4c-.045-.134-.101-.2-.183-.333-.084-.066-.167-.132-.267-.132h-.016c-.093 0-.176.03-.262.132a.8.8 0 00-.205.334 1.18 1.18 0 00-.09.4v.019c.002.089.008.179.02.267-.193-.067-.438-.135-.607-.202a1.635 1.635 0 01-.018-.2v-.02a1.772 1.772 0 01.15-.768c.082-.22.232-.406.43-.533a.985.985 0 01.594-.2zm-2.962.059h.036c.142 0 .27.048.399.135.146.129.264.288.344.465.09.199.14.4.153.667v.004c.007.134.006.2-.002.266v.08c-.03.007-.056.018-.083.024-.152.055-.274.135-.393.2.012-.09.013-.18.003-.267v-.015c-.012-.133-.04-.2-.082-.333a.613.613 0 00-.166-.267.248.248 0 00-.183-.064h-.021c-.071.006-.13.04-.186.132a.552.552 0 00-.12.27.944.944 0 00-.023.33v.015c.012.135.037.2.08.334.046.134.098.2.166.268.01.009.02.018.034.024-.07.057-.117.07-.176.136a.304.304 0 01-.131.068 2.62 2.62 0 01-.275-.402 1.772 1.772 0 01-.155-.667 1.759 1.759 0 01.08-.668 1.43 1.43 0 01.283-.535c.128-.133.26-.2.418-.2zm1.37 1.706c.332 0 .733.065 1.216.399.293.2.523.269 1.052.468h.003c.255.136.405.266.478.399v-.131a.571.571 0 01.016.47c-.123.31-.516.643-1.063.842v.002c-.268.135-.501.333-.775.465-.276.135-.588.292-1.012.267a1.139 1.139 0 01-.448-.067 3.566 3.566 0 01-.322-.198c-.195-.135-.363-.332-.612-.465v-.005h-.005c-.4-.246-.616-.512-.686-.71-.07-.268-.005-.47.193-.6.224-.135.38-.271.483-.336.104-.074.143-.102.176-.131h.002v-.003c.169-.202.436-.47.839-.601.139-.036.294-.065.466-.065zm2.8 2.142c.358 1.417 1.196 3.475 1.735 4.473.286.534.855 1.659 1.102 3.024.156-.005.33.018.513.064.646-1.671-.546-3.467-1.089-3.966-.22-.2-.232-.335-.123-.335.59.534 1.365 1.572 1.646 2.757.13.535.16 1.104.021 1.67.067.028.135.06.205.067 1.032.534 1.413.938 1.23 1.537v-.043c-.06-.003-.12 0-.18 0h-.016c.151-.467-.182-.825-1.065-1.224-.915-.4-1.646-.336-1.77.465-.008.043-.013.066-.018.135-.068.023-.139.053-.209.064-.43.268-.662.669-.793 1.187-.13.533-.17 1.156-.205 1.869v.003c-.02.334-.17.838-.319 1.35-1.5 1.072-3.58 1.538-5.348.334a2.645 2.645 0 00-.402-.533 1.45 1.45 0 00-.275-.333c.182 0 .338-.03.465-.067a.615.615 0 00.314-.334c.108-.267 0-.697-.345-1.163-.345-.467-.931-.995-1.788-1.521-.63-.4-.986-.87-1.15-1.396-.165-.534-.143-1.085-.015-1.645.245-1.07.873-2.11 1.274-2.763.107-.065.037.135-.408.974-.396.751-1.14 2.497-.122 3.854a8.123 8.123 0 01.647-2.876c.564-1.278 1.743-3.504 1.836-5.268.048.036.217.135.289.202.218.133.38.333.59.465.21.201.477.335.876.335.039.003.075.006.11.006.412 0 .73-.134.997-.268.29-.134.52-.334.74-.4h.005c.467-.135.835-.402 1.044-.7zm2.185 8.958c.037.6.343 1.245.882 1.377.588.134 1.434-.333 1.791-.765l.211-.01c.315-.007.577.01.847.268l.003.003c.208.199.305.53.391.876.085.4.154.78.409 1.066.486.527.645.906.636 1.14l.003-.007v.018l-.003-.012c-.015.262-.185.396-.498.595-.63.401-1.746.712-2.457 1.57-.618.737-1.37 1.14-2.036 1.191-.664.053-1.237-.2-1.574-.898l-.005-.003c-.21-.4-.12-1.025.056-1.69.176-.668.428-1.344.463-1.897.037-.714.076-1.335.195-1.814.12-.465.308-.797.641-.984l.045-.022zm-10.814.049h.01c.053 0 .105.005.157.014.376.055.706.333 1.023.752l.91 1.664.003.003c.243.533.754 1.064 1.189 1.637.434.598.77 1.131.729 1.57v.006c-.057.744-.48 1.148-1.125 1.294-.645.135-1.52.002-2.395-.464-.968-.536-2.118-.469-2.857-.602-.369-.066-.61-.2-.723-.4-.11-.2-.113-.602.123-1.23v-.004l.002-.003c.117-.334.03-.752-.027-1.118-.055-.401-.083-.71.043-.94.16-.334.396-.4.69-.533.294-.135.64-.202.915-.47h.002v-.002c.256-.268.445-.601.668-.838.19-.201.38-.336.663-.336zm7.159-9.074c-.435.201-.945.535-1.488.535-.542 0-.97-.267-1.28-.466-.154-.134-.28-.268-.373-.335-.164-.134-.144-.333-.074-.333.109.016.129.134.199.2.096.066.215.2.36.333.292.2.68.467 1.167.467.485 0 1.053-.267 1.398-.466.195-.135.445-.334.648-.467.156-.136.149-.267.279-.267.128.016.034.134-.147.332a8.097 8.097 0 01-.69.468zm-1.082-1.583V5.64c-.006-.02.013-.042.029-.05.074-.043.18-.027.26.004.063 0 .16.067.15.135-.006.049-.085.066-.135.066-.055 0-.092-.043-.141-.068-.052-.018-.146-.008-.163-.065zm-.551 0c-.02.058-.113.049-.166.066-.047.025-.086.068-.14.068-.05 0-.13-.02-.136-.068-.01-.066.088-.133.15-.133.08-.031.184-.047.259-.005.019.009.036.03.03.05v.02h.003z"/></svg>
-        <strong>Linux</strong>
-        <span class="file">.deb</span>
-        <span class="size"></span>
+        <strong>Linux</strong><span class="file">.deb</span><span class="size"></span>
       </a>
     </div>
-    <p class="alt reveal" id="alt"></p>
-    <p class="note reveal">
-      <span class="zh">Linux 用 apt 装本地包，<code>libwebkit2gtk-4.1-0</code> 等依赖会自己拉下来（<code>dpkg -i</code> 不解析依赖，缺一个就装不上）：<code>sudo apt install ./ReaLingo_*_amd64.deb</code>。首次启动后在设置里填入百炼 API Key 即可开始。</span>
-      <span class="en">On Linux install the local package with apt so its dependencies come along (<code>dpkg -i</code> resolves none of them): <code>sudo apt install ./ReaLingo_*_amd64.deb</code>. On first launch, add your Model Studio API key in Settings.</span>
-    </p>
-  </section>
+    <p class="alt" id="alt"></p>
+  </div>
+</section>
 
+<div class="wrap">
   <footer>
-    <span class="zh">Tauri 2 + Rust 内核，Vue 3 前端</span>
-    <span class="en">Rust core on Tauri 2, Vue 3 front end</span>
+    <span class="zh">Tauri 2 + Rust 内核，Vue 3 前端</span><span class="en">Rust core on Tauri 2, Vue 3 front end</span>
     <span class="spacer"></span>
     <a href="https://github.com/noSugarK/ReaLingo/blob/main/LICENSE">MIT</a>
     <a href="https://github.com/noSugarK">noSugarK</a>
   </footer>
-
 </div>
 
 <script>
 (function () {
   var reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var $ = function (s) { return document.querySelector(s); };
+  var zh = function () { return document.documentElement.lang === "zh"; };
 
   /* ---- language ---- */
   var saved = null;
   try { saved = localStorage.getItem("realingo-lang"); } catch (e) {}
   var prefersZh = (navigator.language || "").toLowerCase().indexOf("zh") === 0;
   document.documentElement.lang = saved || (prefersZh ? "zh" : "en");
-  document.getElementById("lang").addEventListener("click", function () {
-    var next = document.documentElement.lang === "zh" ? "en" : "zh";
-    document.documentElement.lang = next;
-    try { localStorage.setItem("realingo-lang", next); } catch (e) {}
-    renderDownloads();
+  $("#lang").addEventListener("click", function () {
+    document.documentElement.lang = zh() ? "en" : "zh";
+    try { localStorage.setItem("realingo-lang", document.documentElement.lang); } catch (e) {}
+    renderLangs(); renderDownloads();
   });
 
   /* ---- reveal on scroll ---- */
-  var targets = document.querySelectorAll(".reveal");
-  if (reduced || !("IntersectionObserver" in window)) {
-    targets.forEach(function (el) { el.classList.add("in"); });
-  } else {
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (e) {
-        if (!e.isIntersecting) return;
-        e.target.classList.add("in");
-        io.unobserve(e.target);
-      });
-    }, { rootMargin: "0px 0px -10% 0px", threshold: 0.08 });
-    targets.forEach(function (el) { io.observe(el); });
-  }
+  var io = "IntersectionObserver" in window && !reduced ? new IntersectionObserver(function (es) {
+    es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } });
+  }, { rootMargin: "0px 0px -10% 0px", threshold: 0.08 }) : null;
+  document.querySelectorAll(".reveal").forEach(function (el) { io ? io.observe(el) : el.classList.add("in"); });
 
-  /* ---- waveform bars: staggered, so it reads as sound rather than a progress bar ---- */
-  var wave = document.getElementById("wave");
-  for (var i = 0; i < 14; i++) {
-    var bar = document.createElement("i");
-    bar.style.animationDelay = (i * 0.08).toFixed(2) + "s";
-    bar.style.animationDuration = (0.9 + (i % 4) * 0.14).toFixed(2) + "s";
-    wave.appendChild(bar);
-  }
-
-  /* ---- the hero demo: type a source line, then drop the translation in ---- */
-  var LINES = [
-    ["Revenue grew eighteen percent year over year.", "营收同比增长了 18%。"],
-    ["Let's move on to the next slide.", "我们看下一页。"],
-    ["この機能は来月リリースされます。", "This feature ships next month."],
-    ["The deadline moved to Friday.", "截止时间改到周五了。"]
-  ];
-  var srcEl = document.getElementById("demo-src");
-  var dstEl = document.getElementById("demo-dst");
-  var at = 0;
-
-  function show(i) {
-    var pair = LINES[i % LINES.length];
-    srcEl.textContent = "";
-    dstEl.textContent = pair[1];
-    dstEl.classList.remove("show");
-
-    if (reduced) {
-      srcEl.textContent = pair[0];
-      dstEl.classList.add("show");
-      setTimeout(function () { show(i + 1); }, 4200);
-      return;
+  /* ---- hero backdrop: "hello" in thirty languages, flying out from behind the logo ---- */
+  (function () {
+    var HELLOS = ["Hello", "你好", "こんにちは", "안녕하세요", "Bonjour", "Hola", "Привет", "مرحبا", "Ciao", "Olá",
+      "Hallo", "Xin chào", "สวัสดี", "Merhaba", "नमस्ते", "Halo", "Hej", "Cześć", "שלום", "Ahoj",
+      "Salam", "Kamusta", "Hei", "Halló", "Selamat", "سلام", "Γεια σου", "Здраво", "Sveiki", "Habari"];
+    var canvas = $("#tunnel"), ctx = canvas.getContext("2d");
+    var W = 0, H = 0, DPR = Math.min(2, window.devicePixelRatio || 1);
+    var dark = matchMedia("(prefers-color-scheme: dark)");
+    // deterministic scatter on a ring around the centre (golden angle), never dead centre
+    var words = HELLOS.concat(HELLOS).map(function (w, i) {
+      var a = i * 2.39996, r = 0.28 + ((i * 97) % 9) * 0.07;
+      return { w: w, x: Math.cos(a) * r * 1.8, y: Math.sin(a) * r, z: 0.08 + ((i * 613) % 1000) / 1000 };
+    });
+    function size() {
+      W = canvas.clientWidth; H = canvas.clientHeight;
+      canvas.width = W * DPR; canvas.height = H * DPR;
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     }
+    size(); addEventListener("resize", size);
+    var running = true, last = performance.now();
+    function frame(now) {
+      var dt = Math.min(0.05, (now - last) / 1000); last = now;
+      ctx.clearRect(0, 0, W, H);
+      var ink = dark.matches ? "245,245,247" : "29,29,31";
+      var f = Math.max(W, H) * 0.3;
+      words.sort(function (a, b) { return b.z - a.z; }); // far first, near on top
+      words.forEach(function (p) {
+        if (!reduced) p.z -= dt * 0.14;
+        if (p.z < 0.06) p.z += 1;
+        var s = 1 / p.z;
+        var x = W / 2 + p.x * f * s, y = H * 0.36 + p.y * f * s;
+        var fog = Math.min(1, (1 - p.z) * 2.2) * Math.min(1, (p.z - 0.06) * 8);
+        // keep clear of the logo, headline and buttons: fade out inside an ellipse around them
+        // on a phone the logo spans nearly the full width, so the clearing has to as well
+        var rx = W < 700 ? W * 0.62 : Math.max(W * 0.34, Math.min(W * 0.5, 560)), ry = Math.min(H * 0.34, 300);
+        var d = Math.sqrt(Math.pow((x - W / 2) / rx, 2) + Math.pow((y - H * 0.36) / ry, 2));
+        var clear = Math.min(1, Math.max(0, (d - 0.85) / 0.35));
+        fog *= clear;
+        if (fog <= 0.01) return;
+        ctx.font = "800 " + Math.round(16 * s) + "px Inter, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif";
+        ctx.textAlign = "center";
+        var hero = (p.w === "Hello" || p.w === "你好") && clear >= 1;
+        ctx.fillStyle = hero ? "rgba(10,132,255," + fog * 0.9 + ")" : "rgba(" + ink + "," + fog * 0.42 + ")";
+        ctx.fillText(p.w, x, y);
+      });
+      if (running && !reduced) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+    // only while the hero is on screen
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver(function (es) {
+        var vis = es[0].isIntersecting;
+        if (vis && !running) { running = true; last = performance.now(); requestAnimationFrame(frame); }
+        running = vis;
+      }).observe(canvas);
+    }
+  })();
 
-    var n = 0;
-    (function type() {
-      srcEl.textContent = pair[0].slice(0, ++n);
-      if (n < pair[0].length) return setTimeout(type, 34);
-      // The translation lands a beat after the sentence closes, the way the real one does.
-      setTimeout(function () { dstEl.classList.add("show"); }, 380);
-      setTimeout(function () { show(i + 1); }, 3400);
-    })();
+  /* ---- hero: the same sentence, into whichever language you tap ---- */
+  var TARGETS = [
+    ["中文", "感谢大家参加，我们开始吧。"],
+    ["日本語", "ご参加ありがとうございます。それでは始めましょう。"],
+    ["한국어", "참석해 주셔서 감사합니다. 시작하겠습니다."],
+    ["Français", "Merci d’être là, on commence."],
+    ["Español", "Gracias por venir; empecemos."],
+    ["Deutsch", "Danke, dass Sie dabei sind – fangen wir an."],
+    ["Русский", "Спасибо, что пришли, давайте начнём."],
+    ["العربية", "شكرًا لحضوركم، لنبدأ."]
+  ];
+  var targets = $("#targets"), liveT = $("#live-t"), cur = 0, timer = null;
+  TARGETS.forEach(function (t, i) {
+    var b = document.createElement("button");
+    b.type = "button"; b.textContent = t[0];
+    if (i === 0) b.className = "on";
+    b.addEventListener("click", function () { pick(i); clearInterval(timer); });
+    targets.appendChild(b);
+  });
+  function pick(i) {
+    cur = i;
+    targets.querySelectorAll("button").forEach(function (b, j) { b.classList.toggle("on", j === i); });
+    liveT.classList.add("swap");
+    setTimeout(function () { liveT.textContent = TARGETS[i][1]; liveT.dir = i === 7 ? "rtl" : "ltr"; liveT.classList.remove("swap"); }, reduced ? 0 : 220);
   }
-  show(at);
+  if (!reduced) timer = setInterval(function () { pick((cur + 1) % TARGETS.length); }, 2600);
+
+  /* ---- overlay playground: mirrors settings.sub ---- */
+  var ov = $("#ov"), state = { mode: "both", align: "center", op: 55, fs: 26, outline: true, color: "#ffffff" };
+  function paint() {
+    ov.style.background = "rgba(6,8,14," + state.op / 100 + ")";
+    ov.style.fontSize = state.fs + "px";
+    ov.style.textAlign = state.align;
+    ov.classList.toggle("outline", state.outline);
+    ov.querySelector(".s").style.display = state.mode === "target" ? "none" : "";
+    ov.querySelector(".t").style.display = state.mode === "source" ? "none" : "";
+    ov.querySelector(".t").style.color = state.color;
+  }
+  document.querySelectorAll("#panel .seg").forEach(function (seg) {
+    seg.addEventListener("click", function (e) {
+      var b = e.target.closest("button"); if (!b) return;
+      seg.querySelectorAll("button").forEach(function (x) { x.classList.toggle("on", x === b); });
+      state[seg.dataset.key] = b.dataset.v; paint();
+    });
+  });
+  $("#op").addEventListener("input", function (e) { state.op = +e.target.value; paint(); });
+  $("#fs").addEventListener("input", function (e) { state.fs = +e.target.value; paint(); });
+  $("#outline").addEventListener("click", function (e) { state.outline = !state.outline; e.currentTarget.classList.toggle("on", state.outline); paint(); });
+  $("#colors").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    this.querySelectorAll("button").forEach(function (x) { x.classList.toggle("on", x === b); });
+    state.color = b.dataset.c; paint();
+  });
+  paint();
+
+  /* ---- the language table, searchable ---- */
+  var LANGS = [["zh","中文","Chinese",1],["en","英语","English",1],["ja","日语","Japanese",1],["ko","韩语","Korean",1],["fr","法语","French",1],["de","德语","German",1],["es","西班牙语","Spanish",1],["pt","葡萄牙语","Portuguese",1],["ru","俄语","Russian",1],["it","意大利语","Italian",1],["ar","阿拉伯语","Arabic",1],["id","印度尼西亚语","Indonesian",1],["th","泰语","Thai",1],["vi","越南语","Vietnamese",1],["tr","土耳其语","Turkish",1],["hi","印地语","Hindi",1],["ms","马来语","Malay",1],["nl","荷兰语","Dutch",1],["ur","乌尔都语","Urdu",1],["nb","挪威语","Norwegian",1],["sv","瑞典语","Swedish",1],["da","丹麦语","Danish",1],["he","希伯来语","Hebrew",1],["fi","芬兰语","Finnish",1],["pl","波兰语","Polish",1],["is","冰岛语","Icelandic",1],["cs","捷克语","Czech",1],["fil","菲律宾语","Filipino",1],["fa","波斯语","Persian",1],["yue","粤语","Cantonese",0],["el","希腊语","Greek",0],["af","南非荷兰语","Afrikaans",0],["ast","阿斯图里亚斯语","Asturian",0],["az","阿塞拜疆语","Azerbaijani",0],["be","白俄罗斯语","Belarusian",0],["bg","保加利亚语","Bulgarian",0],["bn","孟加拉语","Bengali",0],["bs","波斯尼亚语","Bosnian",0],["ca","加泰罗尼亚语","Catalan",0],["ceb","宿务语","Cebuano",0],["et","爱沙尼亚语","Estonian",0],["gl","加利西亚语","Galician",0],["gu","古吉拉特语","Gujarati",0],["hr","克罗地亚语","Croatian",0],["hu","匈牙利语","Hungarian",0],["jv","爪哇语","Javanese",0],["kk","哈萨克语","Kazakh",0],["kn","卡纳达语","Kannada",0],["ky","柯尔克孜语","Kyrgyz",0],["lv","拉脱维亚语","Latvian",0],["mk","马其顿语","Macedonian",0],["ml","马拉雅拉姆语","Malayalam",0],["mr","马拉地语","Marathi",0],["pa","旁遮普语","Punjabi",0],["ro","罗马尼亚语","Romanian",0],["sk","斯洛伐克语","Slovak",0],["sl","斯洛文尼亚语","Slovenian",0],["sw","斯瓦希里语","Swahili",0],["tg","塔吉克语","Tajik",0],["uk","乌克兰语","Ukrainian",0]];
+  var SPK = '<svg viewBox="0 0 24 24" fill="none"><path d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z" fill="currentColor"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  var box = $("#langs"), q = $("#q");
+  function renderLangs() {
+    box.innerHTML = LANGS.map(function (l) {
+      return '<div data-k="' + (l[0] + " " + l[1] + " " + l[2]).toLowerCase() + '"><span>' + (zh() ? l[1] : l[2]) +
+        ' <small>' + l[0] + "</small></span>" + (l[3] ? SPK : "") + "</div>";
+    }).join("");
+    filter();
+  }
+  function filter() {
+    var s = q.value.trim().toLowerCase(), n = 0;
+    box.querySelectorAll("div").forEach(function (d) { var hit = !s || d.dataset.k.indexOf(s) >= 0; d.classList.toggle("off", !hit); n += hit; });
+    $("#count").textContent = zh() ? n + " / 60 种" : n + " of 60";
+  }
+  q.addEventListener("input", filter);
+  renderLangs();
+
+  /* ---- voices: one lit at a time, like picking one ---- */
+  var VOICES = "Tina Cindy Serena Maia Mia Momo Angel Qiao Katerina Jennifer Mione Sohee Sonrisa Marina Hana Griet Eliška Siiri Ingrid Sigga Bea Chloe Roya Sunnybobi Raymond Ethan Harvey Evan Wil Ryan Aiden Lenn Bodega Emilien Andre Alek Rizky Arda Dolce Jakub Joyner Gold".split(" ").concat(["Liora Mira", "Theo Calm", "Li Cassian", "Ono Anna", "Radio Gol"]);
+  var vbox = $("#voices");
+  VOICES.forEach(function (v, i) { var s = document.createElement("span"); s.textContent = v; if (!i) s.className = "on"; vbox.appendChild(s); });
+  if (!reduced) {
+    var vi = 0, vs = vbox.querySelectorAll("span");
+    setInterval(function () { vs[vi].classList.remove("on"); vi = (vi + 7) % vs.length; vs[vi].classList.add("on"); }, 1400);
+  }
 
   /* ---- downloads: real asset links, not a trip to the releases page ----
      The file names carry the version, so a hard-coded /latest/download/<name>
@@ -706,16 +685,9 @@ footer .spacer { margin-left: auto; }
   var REPO = "noSugarK/ReaLingo";
   var PICK = { win: /x64-setup\.exe$/i, mac: /\.dmg$/i, linux: /\.deb$/i };
   var release = null;
-
-  function fmtSize(b) {
-    var mb = b / 1048576;
-    return mb >= 1 ? mb.toFixed(1) + " MB" : Math.round(b / 1024) + " KB";
-  }
-
+  function fmtSize(b) { var mb = b / 1048576; return mb >= 1 ? mb.toFixed(1) + " MB" : Math.round(b / 1024) + " KB"; }
   function detectOS() {
-    var ua = ((navigator.userAgentData && navigator.userAgentData.platform) ||
-              navigator.platform || "") + " " + (navigator.userAgent || "");
-    ua = ua.toLowerCase();
+    var ua = (((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || "") + " " + (navigator.userAgent || "")).toLowerCase();
     // Android reports "linux" too, and there is no build for it — claim nothing.
     if (ua.indexOf("android") >= 0) return null;
     if (ua.indexOf("win") >= 0) return "win";
@@ -723,26 +695,13 @@ footer .spacer { margin-left: auto; }
     if (ua.indexOf("linux") >= 0 || ua.indexOf("x11") >= 0) return "linux";
     return null;
   }
-
   var mine = detectOS();
-
   function renderDownloads() {
-    var zh = document.documentElement.lang === "zh";
-    var meta = document.getElementById("rel-meta");
-    var alt = document.getElementById("alt");
-    var all = '<a href="https://github.com/' + REPO + '/releases">' +
-              (zh ? "全部历史版本" : "All releases") + "</a>";
-
-    if (!release) {
-      meta.textContent = "";
-      alt.innerHTML = all;
-      return;
-    }
-
-    var date = new Date(release.published_at)
-      .toLocaleDateString(zh ? "zh-CN" : "en-US", { year: "numeric", month: "long", day: "numeric" });
-    meta.innerHTML = (zh ? "最新版本 " : "Latest ") + "<b>" + release.tag_name + "</b> · " + date;
-
+    var z = zh(), meta = $("#rel-meta"), alt = $("#alt");
+    var all = '<a href="https://github.com/' + REPO + '/releases">' + (z ? "全部历史版本" : "All releases") + "</a>";
+    if (!release) { meta.textContent = ""; alt.innerHTML = all; return; }
+    var date = new Date(release.published_at).toLocaleDateString(z ? "zh-CN" : "en-US", { year: "numeric", month: "long", day: "numeric" });
+    meta.innerHTML = (z ? "最新版本 " : "Latest ") + "<b>" + release.tag_name + "</b> · " + date;
     Object.keys(PICK).forEach(function (os) {
       var card = document.querySelector('[data-os="' + os + '"]');
       var asset = release.assets.filter(function (a) { return PICK[os].test(a.name); })[0];
@@ -751,33 +710,25 @@ footer .spacer { margin-left: auto; }
       card.querySelector(".file").textContent = asset.name;
       card.querySelector(".size").textContent = fmtSize(asset.size);
       card.classList.toggle("me", os === mine);
-      card.setAttribute("data-me", zh ? "你的系统" : "your OS");
+      card.setAttribute("data-me", z ? "你的系统" : "your OS");
     });
-
     // The hero button is the whole point of the fold: give it the visitor's own file.
-    var btn = document.getElementById("hero-dl");
-    var label = document.getElementById("hero-dl-text");
-    var note = document.getElementById("hero-note");
+    var btn = $("#hero-dl"), label = $("#hero-dl-text"), note = $("#hero-note");
     var NAMES = { win: "Windows", mac: "macOS", linux: "Linux" };
     var own = mine && release.assets.filter(function (a) { return PICK[mine].test(a.name); })[0];
     if (own) {
       btn.href = own.browser_download_url;
-      label.textContent = zh ? "下载 " + NAMES[mine] + " 版" : "Download for " + NAMES[mine];
-      note.textContent = own.name + " · " + fmtSize(own.size);
+      label.textContent = z ? "下载 " + NAMES[mine] + " 版" : "Download for " + NAMES[mine];
+      note.textContent = release.tag_name + " · " + own.name + " · " + fmtSize(own.size);
     } else {
       // Unknown platform: send them to the table rather than guess a file.
       btn.href = "#download";
-      label.textContent = zh ? "选择你的平台" : "Pick your platform";
-      note.textContent = zh ? "提供 Windows、macOS、Linux 安装包" : "Windows, macOS and Linux builds available";
+      label.textContent = z ? "选择你的平台" : "Pick your platform";
+      note.textContent = z ? "提供 Windows、macOS、Linux 安装包" : "Windows, macOS and Linux builds available";
     }
-
     var msi = release.assets.filter(function (a) { return /\.msi$/i.test(a.name); })[0];
-    alt.innerHTML = (msi
-      ? (zh ? "Windows 也可用 " : "Windows also ships an ") +
-        '<a href="' + msi.browser_download_url + '">' + msi.name + "</a> · "
-      : "") + all;
+    alt.innerHTML = (msi ? (z ? "Windows 也可用 " : "Windows also ships an ") + '<a href="' + msi.browser_download_url + '">' + msi.name + "</a> · " : "") + all;
   }
-
   fetch("https://api.github.com/repos/" + REPO + "/releases/latest")
     .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
     .then(function (data) { release = data; renderDownloads(); })
@@ -785,12 +736,9 @@ footer .spacer { margin-left: auto; }
   renderDownloads();
 
   /* ---- video: nothing is fetched until the poster is clicked ---- */
-  var player = document.getElementById("player");
-  var video = document.getElementById("video");
-  document.getElementById("play").addEventListener("click", function () {
-    player.classList.add("playing");
-    video.controls = true;
-    video.play();
+  $("#play").addEventListener("click", function () {
+    $("#player").classList.add("playing");
+    var v = $("#video"); v.controls = true; v.play();
   });
 })();
 </script>
