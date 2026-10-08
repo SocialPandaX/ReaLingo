@@ -8,7 +8,8 @@
 //! - **macOS / CoreAudio**: for a device with no input, cpal creates a Core Audio *process
 //!   tap* plus a private aggregate device. Needs macOS 14.4+, and the app bundle must carry
 //!   `NSAudioCaptureUsageDescription` (see `Info.plist`) — without it TCC denies access
-//!   *silently*, handing back perfectly valid buffers full of zeros.
+//!   *silently*, handing back perfectly valid buffers full of zeros. cpal 0.17's own tap
+//!   never starts (also silence), so we build the tap ourselves: [`crate::tap`].
 //! - **Linux / ALSA**: there is no loopback flag, and the monitor sources that would serve
 //!   the purpose belong to PulseAudio/PipeWire, which ALSA does not enumerate. cpal
 //!   therefore cannot reach them at all, so system audio here does not go through cpal: see
@@ -168,12 +169,14 @@ pub fn start(
     let id = id.to_string();
 
     std::thread::spawn(move || {
-        // macOS: the tap object has to outlive the stream reading from it.
+        // macOS: system audio always goes through our own tap — cpal 0.17's loopback leaves
+        // tap auto-start off and records silence. The tap has to outlive the stream.
         #[cfg(target_os = "macos")]
-        let (_tap, id) = match exclude_self.then(|| {
-            // The tap wants cpal's own id, without our `sys|` prefix.
-            crate::tap::Tap::excluding_self(id.split_once(SEP).map_or(id.as_str(), |(_, cpal_id)| cpal_id))
-        }) {
+        let (_tap, id) = match id
+            .strip_prefix(SYS)
+            .and_then(|r| r.strip_prefix(SEP))
+            .map(|output| crate::tap::Tap::new(output, exclude_self))
+        {
             None => (None, id),
             Some(Ok(tap)) => {
                 let id = format!("{MIC}{SEP}{}", tap.device_id);

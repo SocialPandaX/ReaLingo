@@ -1,8 +1,9 @@
-//! System audio minus our own process, on macOS 14.4+.
+//! System audio, optionally minus our own process, on macOS 14.4+.
 //!
-//! cpal's loopback builds a Core Audio process tap that excludes nobody, so once we speak the
-//! translation our own voice is recorded too. This builds the same tap with our process on the
-//! exclusion list, wraps it in an aggregate device, and hands that to cpal as an ordinary input.
+//! cpal 0.17's loopback builds a Core Audio process tap with auto-start off, so it records
+//! silence, and it excludes nobody, so once we speak the translation our own voice would be
+//! recorded too. This builds the tap ourselves — with our process on the exclusion list when
+//! asked — wraps it in an aggregate device, and hands that to cpal as an ordinary input.
 //! The device is private, so only this process sees it, and both objects go when `Tap` drops.
 
 use anyhow::{anyhow, Result};
@@ -32,16 +33,17 @@ pub struct Tap {
 }
 
 impl Tap {
-    /// `output` is the cpal device id of the output whose mix we want.
-    pub fn excluding_self(output: &str) -> Result<Self> {
+    /// `output` is the cpal device id of the output whose mix we want; `exclude_self` leaves
+    /// our own playback out of it.
+    pub fn new(output: &str, exclude_self: bool) -> Result<Self> {
         let uid = cpal::DeviceId::from_str(output).map_err(|e| anyhow!("{e}"))?.1;
         // Only known once we have played something; `Player` starts before capture for that.
-        let me = own_process_object()?;
+        let excluded = if exclude_self { vec![NSNumber::new_u32(own_process_object()?)] } else { Vec::new() };
 
         let desc = unsafe {
             CATapDescription::initExcludingProcesses_andDeviceUID_withStream(
                 CATapDescription::alloc(),
-                &NSArray::from_retained_slice(&[NSNumber::new_u32(me)]),
+                &NSArray::from_retained_slice(&excluded),
                 &NSString::from_str(&uid),
                 0,
             )
