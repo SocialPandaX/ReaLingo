@@ -17,11 +17,22 @@
 
 Rust core on Tauri 2, Vue 3 front end, Apple liquid-glass interface.
 
-## Download
+## Download and install
 
 Grab the installer for your platform from the
 [latest release](https://github.com/noSugarK/ReaLingo/releases/latest):
-`.msi` for Windows, `.dmg` for macOS (universal — Intel and Apple Silicon), `.deb` for Linux.
+`.exe` / `.msi` for Windows, `.dmg` for macOS (universal — Intel and Apple Silicon), `.deb` for Linux.
+None of them carry a commercial code signature, so the OS stops the first launch once; let it through as below.
+
+| OS | Install | First launch |
+|---|---|---|
+| Windows 10/11 | Run `ReaLingo_x.y.z_x64-setup.exe` (or the `.msi`) | If SmartScreen says "Windows protected your PC", click **More info → Run anyway**; afterwards open it from the Start menu |
+| macOS 12+ | Open the `.dmg` and drag ReaLingo into Applications | If macOS says the app is damaged or from an unidentified developer, run `xattr -dr com.apple.quarantine /Applications/ReaLingo.app` in Terminal, or click **Open Anyway** under **System Settings → Privacy & Security**; then allow microphone / system audio recording when asked |
+| Ubuntu 22.04+ | `sudo apt install ./ReaLingo_x.y.z_amd64.deb` (apt, not `dpkg -i`, so dependencies get pulled in) | Open it from the app menu, or run `realingo` |
+
+If system audio stays silent on macOS after an upgrade, remove ReaLingo under
+**System Settings → Privacy & Security → Screen & System Audio Recording** (and **Microphone**),
+reopen the app and grant it again — the ad-hoc signature differs per version, so an old grant may not match.
 
 ## Features
 
@@ -117,9 +128,13 @@ out of a separate WebView2 / WebKit process.
   everything on the default output except our process tree. It can only record the default device, which
   is also where the speech plays, so it is used only when the selected device is the default; any other
   device never hears the speech and keeps plain loopback
-- macOS (`src-tauri/src/tap.rs`): cpal's tap excludes nobody, so we build one with our process on the
-  exclusion list, wrap it in a private aggregate device, and read that through cpal as an ordinary input.
-  Our process has to be known to Core Audio before it can be looked up, so playback starts before capture
+- macOS (`src-tauri/src/tap.rs`): system audio always goes through a tap we build ourselves, wrapped in a
+  private aggregate device and read through cpal as an ordinary input; while reading aloud, our process is
+  on its exclusion list. Our process has to be known to Core Audio before it can be looked up, so playback
+  starts before capture. cpal 0.17's own tap is not used: it creates the aggregate device with tap
+  auto-start off, so it records silence, and with a fixed UID it never destroys, so the second start fails
+  with `Illegal operation`. A fresh aggregate device takes a moment to report its input configs, so we
+  wait for it before handing it to cpal
 
 **macOS signing**: there is no Apple developer certificate, so the `.app` is ad-hoc signed
 (`signingIdentity: "-"`). Unsigned, only the executable carries the linker's signature, with
@@ -191,8 +206,12 @@ The version lives in exactly one place: `[package] version` in `src-tauri/Cargo.
 `tauri.conf.json` omits the `version` field so Tauri falls back to Cargo.toml, and
 `package.json` is `private` and carries none. CI checks the tag against that one place.
 
+Release notes go in `.github/release-notes/v<version>.md`, committed before the tag; CI puts them at the
+top of the release, followed by GitHub's generated list of changes. Without that file only the generated
+part appears.
+
 ```bash
-# after bumping version in src-tauri/Cargo.toml
+# after bumping version in src-tauri/Cargo.toml and writing .github/release-notes/v0.2.1.md
 git tag v0.2.1 && git push origin v0.2.1
 ```
 

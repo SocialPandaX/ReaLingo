@@ -17,10 +17,20 @@
 
 Tauri 2 + Rust 内核，Vue 3 前端，苹果液态玻璃风格界面。
 
-## 下载
+## 下载与安装
 
 从 [Releases](https://github.com/noSugarK/ReaLingo/releases/latest) 取对应平台的安装包：
-Windows `.msi`、macOS `.dmg`（Intel 与 Apple Silicon 通用）、Linux `.deb`。
+Windows `.exe` / `.msi`、macOS `.dmg`（Intel 与 Apple Silicon 通用）、Linux `.deb`。
+安装包都没有商业代码签名，首次打开会被系统拦一下，按下面放行即可。
+
+| 系统 | 安装 | 首次打开 |
+|---|---|---|
+| Windows 10/11 | 双击 `ReaLingo_x.y.z_x64-setup.exe`（或 `.msi`） | SmartScreen 提示「Windows 已保护你的电脑」时点 **更多信息 → 仍要运行**；之后从开始菜单打开 |
+| macOS 12+ | 打开 `.dmg`，把 ReaLingo 拖进「应用程序」 | 提示「已损坏」或「无法验证开发者」时，终端执行 `xattr -dr com.apple.quarantine /Applications/ReaLingo.app`，或到 **系统设置 → 隐私与安全性** 点 **仍要打开**；随后按提示允许麦克风 / 系统录音 |
+| Ubuntu 22.04+ | `sudo apt install ./ReaLingo_x.y.z_amd64.deb`（用 apt 才会拉依赖） | 从应用菜单打开，或终端运行 `realingo` |
+
+macOS 升级后系统声音没反应：到 **系统设置 → 隐私与安全性 → 屏幕与系统录音**（以及 **麦克风**）
+里删掉 ReaLingo，重开应用再授权一次 —— ad-hoc 签名每个版本都不同，旧的授权可能对不上。
 
 ## 功能
 
@@ -103,8 +113,11 @@ monitor 正是「录下这个输出在放什么」的设备，pavucontrol 里能
 - Windows（`src-tauri/src/wasapi.rs`）：process loopback 的 `EXCLUDE_TARGET_PROCESS_TREE` 模式，
   录「默认输出设备上除了本进程树以外的所有声音」。它只能录默认设备，而朗读也放在默认设备上，
   所以只有选中的就是默认设备时才走这条路；选了别的设备本来就录不到朗读，仍走普通 loopback
-- macOS（`src-tauri/src/tap.rs`）：cpal 的 tap 不排除任何进程，这里自己建一个把本进程列进排除名单的 tap，
-  包成私有聚合设备交给 cpal 当普通输入读。本进程要先在 Core Audio 里出现才查得到，所以先开播放再开采集
+- macOS（`src-tauri/src/tap.rs`）：系统声音一律走自建的 tap，包成私有聚合设备交给 cpal 当普通输入读；
+  朗读时把本进程列进排除名单。本进程要先在 Core Audio 里出现才查得到，所以先开播放再开采集。
+  不用 cpal 0.17 自带的 tap：它建聚合设备时关了 tap 自动启动，只录到静音；设备 UID 是写死的，
+  又不销毁，第二次开始就报 `Illegal operation`。新建的聚合设备要过一小会儿才报得出输入配置，
+  所以建好后会等它就绪再交给 cpal
 
 **macOS 签名**：没有 Apple 开发者证书，`.app` 用 ad-hoc 签名（`signingIdentity: "-"`）。
 不签的话只有可执行文件带着链接器加的签名，`Info.plist` 和资源没被封进去，系统记不住授过的权限，
@@ -166,14 +179,17 @@ macOS 和 Ubuntu 的安装包没法在 Windows 上交叉编译，由 `.github/wo
 
 发布流程是「先建草稿 → 各平台分别上传 → **三个平台全部成功后**才转正式发布」，
 所以任一平台挂掉时 release 会停在草稿状态，不会放出半套包。tag 与
-`tauri.conf.json` 里的 `version` 不一致会直接失败，避免发出版本号对不上的包。
+`src-tauri/Cargo.toml` 里的 `version` 不一致会直接失败，避免发出版本号对不上的包。
 
 版本号只有一处：`src-tauri/Cargo.toml` 的 `[package] version`。`tauri.conf.json` 不写
 `version` 字段，Tauri 会回落到 Cargo.toml；`package.json` 是 `private` 的，也不带版本号。
 CI 就按这一处校验 tag。
 
+发布说明写在 `.github/release-notes/v<版本号>.md`，随 tag 一起提交；CI 建 release 时把它放在最前面，
+后面接 GitHub 自动生成的提交列表。没有这个文件就只有自动生成的部分。
+
 ```bash
-# 改完 src-tauri/Cargo.toml 里的 version
+# 改完 src-tauri/Cargo.toml 里的 version，写好 .github/release-notes/v0.2.1.md
 git tag v0.2.1 && git push origin v0.2.1
 ```
 
@@ -190,7 +206,7 @@ Linux 只出 `.deb`：它在 `tauri.conf.json` 里声明了 `libwebkit2gtk-4.1-0
 `libayatana-appindicator3-1`，装的时候 apt 会自己把依赖拉下来 ——
 
 ```bash
-sudo apt install ./realingo_0.2.1_amd64.deb   # 用 apt 而不是 dpkg -i，才会解析依赖
+sudo apt install ./ReaLingo_0.2.1_amd64.deb   # 用 apt 而不是 dpkg -i，才会解析依赖
 ```
 
 不出 AppImage 是因为它存在的意义就是自带一份 WebKitGTK 去伺候没有该库的发行版，

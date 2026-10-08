@@ -43,8 +43,11 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 && exit 0
+          # Hand-written notes for this tag go on top; the generated changelog follows them.
+          notes=".github/release-notes/$GITHUB_REF_NAME.md"
+          [ -f "$notes" ] || notes=/dev/null
           gh release create "$GITHUB_REF_NAME" \
-            --draft --title "ReaLingo $GITHUB_REF_NAME" --generate-notes
+            --draft --title "ReaLingo $GITHUB_REF_NAME" --notes-file "$notes" --generate-notes
 
   bundle:
     needs: create-release
