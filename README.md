@@ -106,6 +106,12 @@ monitor 正是「录下这个输出在放什么」的设备，pavucontrol 里能
 - macOS（`src-tauri/src/tap.rs`）：cpal 的 tap 不排除任何进程，这里自己建一个把本进程列进排除名单的 tap，
   包成私有聚合设备交给 cpal 当普通输入读。本进程要先在 Core Audio 里出现才查得到，所以先开播放再开采集
 
+**macOS 签名**：没有 Apple 开发者证书，`.app` 用 ad-hoc 签名（`signingIdentity: "-"`）。
+不签的话只有可执行文件带着链接器加的签名，`Info.plist` 和资源没被封进去，系统记不住授过的权限，
+麦克风会一直重复申请。hardened runtime 关掉：它只对公证有意义，开着还得另配录音的 entitlement。
+下载后首次打开会被 Gatekeeper 拦住，执行 `xattr -dr com.apple.quarantine /Applications/ReaLingo.app`，
+或在「系统设置 → 隐私与安全性」里点「仍要打开」。
+
 **macOS 权限**：麦克风和系统声音是两个独立的 TCC 权限，分别对应 `src-tauri/Info.plist` 里的
 `NSMicrophoneUsageDescription` 和 `NSAudioCaptureUsageDescription`。后者缺失时 macOS
 **不会报错**，只会一直给全静音的音频缓冲区；而且权限弹窗只对已签名的二进制出现。

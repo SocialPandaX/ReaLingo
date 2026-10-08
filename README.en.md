@@ -121,6 +121,14 @@ out of a separate WebView2 / WebKit process.
   exclusion list, wrap it in a private aggregate device, and read that through cpal as an ordinary input.
   Our process has to be known to Core Audio before it can be looked up, so playback starts before capture
 
+**macOS signing**: there is no Apple developer certificate, so the `.app` is ad-hoc signed
+(`signingIdentity: "-"`). Unsigned, only the executable carries the linker's signature, with
+`Info.plist` and resources left unsealed, and macOS cannot remember a permission it granted — the
+microphone prompt keeps coming back. Hardened runtime is off: it only matters for notarization, and
+with it on, recording would need its own entitlement. On first launch Gatekeeper blocks the download;
+run `xattr -dr com.apple.quarantine /Applications/ReaLingo.app`, or click "Open Anyway" under
+System Settings → Privacy & Security.
+
 **macOS permissions**: microphone and system audio are two separate TCC permissions, backed by
 `NSMicrophoneUsageDescription` and `NSAudioCaptureUsageDescription` in `src-tauri/Info.plist`.
 When the latter is missing macOS **does not raise an error** — it just hands back buffers full
